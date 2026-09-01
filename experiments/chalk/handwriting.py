@@ -51,6 +51,8 @@ class Hand:
     join_prob: float       # chance of keeping the pen down between two letters
     touchdown: float       # x-heights over which the chalk settles onto the board at a stroke start
     liftoff: float         # x-heights over which it lifts away at the end
+    jitter_x: float        # per-letter horizontal offset, sigma as a fraction of x-height
+    jitter_y: float        # per-letter vertical offset (baseline bounce), same units
     mess: float = 1.0      # the knob everything above was sampled with
     join: bool = True      # connect letters into continuous strokes at all
 
@@ -72,6 +74,8 @@ class Hand:
             join_prob=float(np.clip(rng.uniform(0.8, 1.0) - 0.3 * (mess - 1.0), 0.3, 1.0)),
             touchdown=float(rng.uniform(0.12, 0.3)),
             liftoff=float(rng.uniform(0.2, 0.45)),
+            jitter_x=float(rng.uniform(0.01, 0.04)) * mess,
+            jitter_y=float(rng.uniform(0.03, 0.07)) * mess,
             mess=mess,
         )
 
@@ -159,7 +163,8 @@ def _place_glyph(font, ch, hand, rng, pen_x, base_y, mood):
     slant = math.tan(math.radians(hand.slant + 5.0 * slop * mood['slant'] + 2.0 * slop * rng.normal()))
     rot = math.radians(3.0 * slop * mood['rot'] + 1.5 * slop * rng.normal())
     cr, sr = math.cos(rot), math.sin(rot)
-    bounce = 0.05 * slop * hand.x_height * rng.normal()
+    dx = hand.jitter_x * hand.x_height * rng.normal()
+    dy = hand.jitter_y * hand.x_height * rng.normal()
     # Ascenders/descenders vary a lot between instances, but an 'l' that
     # shrinks to x-height reads as an 'i', so keep them clearly longer.
     asc = float(np.clip(1 + 0.12 * slop * rng.normal(), 0.8, 1.35))
@@ -187,8 +192,8 @@ def _place_glyph(font, ch, hand, rng, pen_x, base_y, mood):
         v = v + wy[0] * uu * vv + wy[1] * uu * uu + wy[2] * vv * vv
         u, v = u * sx, v * sy
         u = u - v * slant                         # shear: tops move right
-        x = pen_x + u * cr - v * sr
-        y = base_y + bounce + u * sr + v * cr
+        x = pen_x + dx + u * cr - v * sr
+        y = base_y + dy + u * sr + v * cr
         strokes.append(np.stack([x, y], 1))
 
     # Hershey glyphs often split one pen movement into several strokes at a

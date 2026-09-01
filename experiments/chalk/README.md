@@ -49,7 +49,9 @@ with the entry and exit connectors drawn in. On top of that:
 - **Drift, not dice** — size, slant and rotation wander along the line with
   low-frequency noise (a mood) plus a small independent kick per letter; the
   baseline wanders and each line tilts a little. Real irregularity is
-  correlated, not white noise.
+  correlated, not white noise. On top of that each letter gets an
+  independent position offset (`jitter_x`, `jitter_y`, sigma in x-heights —
+  a few percent by default) and its advance is jittered.
 - **Cursive joins** — Hershey is drawn so that at nominal spacing one letter's
   exit lands exactly on the next letter: at the stroke start for n/m/i/u-types,
   on the left of the bowl for a/o/d/g-types. The first case is concatenated into
@@ -184,6 +186,12 @@ Chalk / pencil media
 - Shadertoy [lslGR4 "Chalk stroke"](https://www.shadertoy.com/view/lslGR4) — a GLSL take (login-walled, not read).
 
 ## Making it more (or less) human
+
+Every `Hand` parameter is sampled per seed, and any of them can be pinned
+from the CLI: `--jitter-x 0.1 --jitter-y 0.1` for visibly uneven letter
+placement, `--spacing 0.9` to tighten a print face, `--slant 0`,
+`--touchdown` / `--liftoff`, `--squiggle`, `--warp`, `--sloppiness`,
+`--pressure`, `--join-prob`. `--help` lists them with units.
 
 `--mess` is the one knob: 0.5 is a careful schoolbook hand, 1 the default, 2
 a scrawl that is still mostly parseable, 3 illegible. It scales squiggle,

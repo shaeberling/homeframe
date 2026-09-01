@@ -30,7 +30,7 @@ DEFAULT_TEXT = ("Today\n"
 
 def render(text, seed, size=(960, 680), x_height=26, font_name='cursive', digits_font=None,
            chalk=None, margin=50, haze=True, join=True, fit=False, border=0.05, align=None, mess=1.0,
-           touchdown=None, liftoff=None):
+           hand_overrides=None):
     """fit=True ignores x_height and margin: the text block is scaled to fill the
     canvas inside `border` (fraction of each edge) and centred, lines centred
     unless align says otherwise. Otherwise text starts at `margin` and wraps."""
@@ -39,10 +39,8 @@ def render(text, seed, size=(960, 680), x_height=26, font_name='cursive', digits
     font = load_font(font_name, digits=digits_font)
     hand = Hand.random(rng, x_height, mess=mess)
     hand.join = join
-    if touchdown is not None:
-        hand.touchdown = touchdown
-    if liftoff is not None:
-        hand.liftoff = liftoff
+    for k, v in (hand_overrides or {}).items():
+        setattr(hand, k, v)
     chalk = chalk or Chalk()
     align = align or ('center' if fit else 'left')
 
@@ -138,6 +136,22 @@ def font_sheet(text, seed, chalk, mess, cell=(480, 118), x_height=20):
     return np.vstack([np.hstack(tiles[i * cols:(i + 1) * cols]) for i in range(rows)])
 
 
+# Hand parameters that can be pinned from the CLI instead of sampled per seed.
+HAND_FIELDS = {
+    'slant': 'degrees, positive leans right',
+    'spacing': 'letter advance multiplier',
+    'word_gap': 'space advance multiplier',
+    'jitter_x': 'per-letter horizontal offset, sigma in x-heights',
+    'jitter_y': 'per-letter vertical offset, sigma in x-heights',
+    'squiggle': 'wobble normal to the path, in x-heights',
+    'warp': 'per-glyph shape deformation, in x-heights',
+    'sloppiness': 'scales scale/rotation/advance jitter',
+    'pressure': 'habitual pressure 0..1',
+    'touchdown': 'x-heights for the chalk to settle at a stroke start',
+    'liftoff': 'x-heights for the chalk to lift away at the end',
+    'join_prob': 'chance of keeping the pen down between letters (script faces)',
+}
+
 CHALK_FIELDS = ('width', 'edge', 'min_width', 'facet_scale', 'facet_drift', 'facet_depth', 'softness', 'transfer', 'skip', 'drag', 'dust')
 
 
@@ -147,8 +161,6 @@ def main():
     ap.add_argument('--seed', type=int, default=None, help='default: random, printed so you can reproduce')
     ap.add_argument('--size', default='960x680')
     ap.add_argument('--x-height', type=float, default=26, help='lowercase letter height in px (line pitch is ~3.85x)')
-    ap.add_argument('--touchdown', type=float, default=None, help='override: x-heights for the chalk to settle at a stroke start')
-    ap.add_argument('--liftoff', type=float, default=None, help='override: x-heights for the chalk to lift away at the end')
     ap.add_argument('--mess', type=float, default=1.0, help='0.5 careful schoolbook hand, 1 normal, 2 scrawl')
     ap.add_argument('--fit', action='store_true', help='scale the text block to fill the canvas inside --border, centred')
     ap.add_argument('--border', type=float, default=0.05, help='with --fit: empty fraction of each edge')
@@ -165,6 +177,8 @@ def main():
     ap.add_argument('--out', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'out'))
     for f in CHALK_FIELDS:
         ap.add_argument(f'--{f.replace("_", "-")}', type=float, default=None, help=f'Chalk.{f}')
+    for f, doc in HAND_FIELDS.items():
+        ap.add_argument(f'--{f.replace("_", "-")}', type=float, default=None, help=f'pin Hand.{f}: {doc}')
     args = ap.parse_args()
 
     os.makedirs(args.out, exist_ok=True)
@@ -176,6 +190,7 @@ def main():
         if getattr(args, f) is not None:
             setattr(chalk, f, getattr(args, f))
     digits_font = args.digits_font or None
+    hand_overrides = {f: getattr(args, f) for f in HAND_FIELDS if getattr(args, f) is not None}
 
     t0 = time.time()
     if args.fonts:
@@ -196,7 +211,7 @@ def main():
     r = render(args.text, seed, size=size, x_height=args.x_height, font_name=args.font, digits_font=digits_font,
                chalk=chalk, haze=not args.no_haze, join=(args.font in SCRIPT_FONTS or args.join) and not args.no_join,
                fit=args.fit, border=args.border, align=args.align, mess=args.mess,
-               touchdown=args.touchdown, liftoff=args.liftoff)
+               hand_overrides=hand_overrides)
     thresholded, dithered = panel_views(r['coverage'], args.threshold)
     cv2.imwrite(os.path.join(args.out, 'chalk.png'), r['image'])
     cv2.imwrite(os.path.join(args.out, 'panel_threshold.png'), thresholded)
