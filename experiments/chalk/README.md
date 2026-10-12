@@ -76,7 +76,7 @@ with the entry and exit connectors drawn in. On top of that:
 
 Each stroke comes out as an `(N, 4)` array of `x, y, pressure, speed` at ~1 px
 spacing. `--dump-strokes` writes them as JSON, which is the hand-off point if
-the renderer is ever ported to the Node server.
+the renderer is ever moved into the server.
 
 ### `chalk.py` — strokes → coverage
 

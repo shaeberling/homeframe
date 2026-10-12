@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Home Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%2305080d'/%3E%3Crect x='9' y='9' width='14' height='14' fill='none' stroke='%2335d0ff' stroke-width='3' transform='rotate(45 16 16)'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <h1>Home<span class="brand-sep">//</span>Dashboard</h1>
+        <span class="demo-badge" id="demo-badge" hidden>Demo data</span>
+      </div>
+      <div class="instances" id="instances"></div>
+      <div class="range" id="range" role="group" aria-label="History range"></div>
+      <button type="button" class="help-button" id="help-open" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">?</button>
+      <div class="clock">
+        <time id="clock-time">--:--:--</time>
+        <span id="clock-date"></span>
+      </div>
+    </header>
+
+    <div class="banner" id="banner" role="alert" hidden></div>
+
+    <main class="main">
+      <section class="weather" id="weather" aria-label="Weather" hidden></section>
+      <div class="board" id="board">
+        <div class="panels" id="panels">
+          <p class="placeholder">Connecting…</p>
+        </div>
+        <div class="panels" id="activity"></div>
+        <div class="panels" id="batteries"></div>
+      </div>
+    </main>
+
+    <aside class="attention frame" id="attention" data-level="clear" aria-live="polite">
+      <header class="attention-head">
+        <h2>Attention</h2>
+        <span class="attention-count" id="attention-count">0</span>
+      </header>
+      <p class="attention-summary" id="attention-summary"></p>
+      <ul class="attention-list" id="attention-list"></ul>
+    </aside>
+  </div>
+
+  <div class="tooltip" id="tooltip" hidden></div>
+
+  <dialog class="detail frame" id="detail" aria-labelledby="detail-title">
+    <header class="detail-head">
+      <h2 id="detail-title"></h2>
+      <span class="tag" id="detail-instance"></span>
+      <span class="card-status" id="detail-status"></span>
+      <span class="detail-now" id="detail-now"></span>
+      <div class="range" id="detail-range" role="group" aria-label="History range"></div>
+      <button type="button" class="help-button" id="detail-close">Esc</button>
+    </header>
+    <div class="chart-stats" id="detail-stats"></div>
+    <div class="chart-plot" id="detail-plot"></div>
+    <div class="tooltip" id="detail-tooltip" hidden></div>
+  </dialog>
+
+  <dialog class="detail events frame" id="events" aria-labelledby="events-title">
+    <header class="detail-head">
+      <h2 id="events-title"></h2>
+      <span class="tag" id="events-instance"></span>
+      <span class="events-state" id="events-state"></span>
+      <button type="button" class="help-button" id="events-close">Esc</button>
+    </header>
+    <ol class="event-list" id="events-list"></ol>
+    <p class="events-note" id="events-note"></p>
+  </dialog>
+
+  <dialog class="help frame" id="help" aria-labelledby="help-title">
+    <header class="help-head">
+      <h2 id="help-title">Keyboard</h2>
+      <button type="button" class="help-button" id="help-close">Esc</button>
+    </header>
+    <dl class="help-keys" id="help-keys"></dl>
+  </dialog>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

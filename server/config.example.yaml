@@ -1,0 +1,113 @@
+# homeframe server configuration.
+# Copy this file to config.yaml and fill in your instances.
+# config.yaml is git-ignored because it holds access tokens.
+
+server:
+  host: 0.0.0.0        # the frame fetches over the LAN; 127.0.0.1 keeps everything local
+  port: 8080           # HF_SERVER_BASE in the firmware points here
+  poll_interval: 15    # seconds between state refreshes from Home Assistant
+  stale_after: 15      # minutes without an update before the dashboard pulses a warning
+
+# Create a token in Home Assistant under
+#   Profile → Security → Long-lived access tokens
+instances:
+  - id: home                               # short key, referenced by panels below
+    name: Home                             # label shown in the dashboard
+    url: http://homeassistant.local:8123
+    token: "PASTE_LONG_LIVED_ACCESS_TOKEN"
+    # weather: weather.forecast_home       # forecast source; picked automatically
+    #                                      # if left out, `false` hides the forecast
+    # activity:                            # doors and motion sensors, listed with
+    #   - binary_sensor.front_door         # their state and when it last changed
+    #   - entity: binary_sensor.hall_motion
+    #     name: Hallway
+    # batteries:                           # watch and list only these battery sensors
+    #   - sensor.front_door_battery        # (ids or globs); without this key every
+    #   - sensor.*_thermostat_battery      # battery sensor of the instance is watched
+
+  - id: cabin
+    name: Cabin
+    url: https://cabin.example.com
+    token: "PASTE_LONG_LIVED_ACCESS_TOKEN"
+    # verify_ssl: false                    # only for self-signed certificates
+
+# The e-paper frame. Every key is optional.
+frame:
+  # home: home               # instance of the house the frame hangs in (default: the first).
+  #                          # Its weather, temperatures and doors are shown in detail;
+  #                          # other houses appear as one summary line and through
+  #                          # attention items.
+  # orientation: landscape   # portrait renders 680x960 and rotates it into the panel's
+  #                          # scanline order; must match how the frame is hung
+  # threshold: 160           # greyscale cutoff, 0-255; lower = more black
+  # dither: false            # Floyd-Steinberg; only for photos, it makes text fuzzy
+  # render_ttl: 30           # seconds a rendered frame is reused
+  # token: ""                # must match HF_SERVER_TOKEN in the firmware; guards /frame.bin only
+  # chrome_path: /usr/bin/chromium   # default: a system Chromium, else Playwright's own
+  # locale: en-US
+  # time_zone: Europe/Berlin # default: the time zone of the home instance
+  # clock: 24                # or 12
+
+# Family data on the frame, read through Home Assistant. Every key is optional.
+services:
+  # Upcoming events whose title starts with a star. Connect Google Calendar
+  # to Home Assistant (Settings → Devices & services → Add integration →
+  # Google Calendar) and its calendars show up as calendar.* entities.
+  calendar:
+    # instance: home               # default: the frame's home instance
+    # entities:                    # default: every calendar.* entity of the instance
+    #   - calendar.family
+    # prefixes: ["⭐", "🌟", "★"]   # events must start with one of these
+    # days: 14                     # how far ahead to look
+    # limit: 6
+
+  # Open items of Home Assistant to-do lists.
+  todo:
+    # instance: home
+    # entities:                    # default: every todo.* entity of the instance;
+    #   - todo.shopping_list       # an empty list hides the panel
+    # limit: 8
+
+# What ends up in the "Attention" column, and in the black band on the frame.
+# Temperature values are in the unit the sensor reports.
+attention:
+  battery_low: 20            # % and below  → orange
+  temperature_low: 16        # below this   → orange
+  temperature_critical: 8    # below this   → red (heating probably not working)
+
+  # Extra entities to report when they go offline (glob patterns, prefix
+  # with "<instance id>:" to limit a pattern to one instance).
+  # Sensors shown in panels and all battery sensors are always watched.
+  watch: []
+  #  - binary_sensor.*_door
+  #  - cabin:switch.heating_*
+
+  # Entities that should never raise attention.
+  ignore: []
+  #  - sensor.outdoor_*
+  #  - home:sensor.freezer_temperature
+
+# Panels decide which sensors are shown, and where.
+# An instance without any panel shows every temperature sensor it has, so you
+# can start with just the instances above and refine from there.
+#
+# panels:
+#   - title: Ground floor
+#     instance: home
+#     sensors:
+#       - sensor.living_room_temperature            # short form
+#       - entity: sensor.basement_temperature       # long form, all keys optional
+#         name: Basement
+#         humidity: sensor.basement_humidity        # shown on the same card
+#         climate: climate.basement                 # thermostat: heating mode + target on the card
+#         min: 0             # gauge range
+#         max: 30
+#         low: 12            # per-sensor thresholds override the ones above
+#         critical: 5
+#       - entity: sensor.garage_temperature
+#         alerts: false      # show it, but never raise attention
+#
+#   - title: Cabin
+#     instance: cabin
+#     sensors:
+#       - sensor.main_room_temperature

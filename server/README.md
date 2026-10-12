@@ -1,44 +1,143 @@
 # homeframe server
 
-Renders `views/dashboard.html` in headless Chrome, thresholds it to pure black
-and white, and packs it into the 81600-byte frame the panel expects.
+One core on top of one or more Home Assistant instances, shown two ways:
 
-```bash
-npm install
-npx puppeteer browsers install chrome   # npm >=11 blocks the postinstall that
-                                        # would normally do this
-npm start
+- **The frame** — a dense page for the e-paper panel, rendered in headless
+  Chromium, thresholded to pure black and white, and packed into the
+  81600-byte frame the panel expects.
+- **The web dashboard** — a dark, live, at-a-glance view of every house:
+  temperature gauges, history charts, and an **Attention** column.
+
+## Run
+
+```sh
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m homeframe --demo     # synthetic data, no Home Assistant needed
 ```
+
+Then open http://localhost:8080 for the web dashboard and
+http://localhost:8080/preview.png for what the panel will show.
+
+Rendering needs a Chromium. A system one (`chromium`, `chromium-browser`,
+`google-chrome`) is used when there is one; otherwise run
+`.venv/bin/playwright install chromium` once. On a headless Linux host, install
+fonts (`fonts-dejavu`, or Inter) or the frame renders in a fallback face.
+
+To use your own instances:
+
+```sh
+cp config.example.yaml config.yaml    # add URLs + long-lived access tokens
+.venv/bin/python -m homeframe
+```
+
+`config.yaml` is git-ignored. Tokens stay in the Python process; browsers and
+the frame only ever talk to this server.
 
 | Route | Purpose |
 | --- | --- |
+| `/` | The web dashboard. |
 | `/preview.png` | The exact two-tone image the panel will show. Use this while designing. |
-| `/dashboard` | The live HTML, in your browser. Edit and reload — no restart needed. |
+| `/frame` | The frame's live HTML, in your browser. Edit `web/frame/index.html` and reload — no restart needed. |
 | `/frame.bin` | What the device fetches: 81600 raw bytes, `ETag` + `304`. |
-| `/api/data` | The JSON the page renders from. |
+| `/api/frame` | The JSON the frame renders from. |
+| `/api/dashboard`, `/api/history`, `/api/events` | The JSON behind the web dashboard. |
 | `/healthz` | Liveness. |
 
 Append `?fresh=1` to `/preview.png` or `/frame.bin` to bypass the render cache.
 
 ## Configuration
 
-All optional, all environment variables:
+See `config.example.yaml` for every option. In short:
 
-| Variable | Default | Notes |
-| --- | --- | --- |
-| `HF_PORT` | `8080` | |
-| `HF_ORIENTATION` | `landscape` | `portrait` renders 680×960 and rotates into the panel's native scanline order. Must match how the frame is hung. |
-| `HF_THRESHOLD` | `160` | Greyscale cutoff, 0–255. Lower = more black. |
-| `HF_DITHER` | off | `1` enables Floyd–Steinberg. Turn on only for photos; it makes text fuzzy. |
-| `HF_RENDER_TTL_MS` | `30000` | Cache window. Concurrent requests share one render. |
-| `HF_TOKEN` | none | Must match `HF_SERVER_TOKEN` in the firmware. Guards `/frame.bin` only. |
-| `HF_TZ` | `America/Los_Angeles` | IANA zone, used for the clock and the forecast. |
-| `HF_LOCALE` | `en-US` | |
-| `HF_LAT` / `HF_LON` | `37.7749` / `-122.4194` | Forecast location. |
-| `HF_LOCATION` | `San Francisco` | Label shown beside the Weather heading. |
-| `HF_UNITS` | `metric` | Or `imperial`. Metric implies Celsius and a 24-hour clock; imperial implies Fahrenheit and a 12-hour one. |
-| `HF_HOST` | `0.0.0.0` | Bind address. The IPv4 wildcard is deliberate — see below. |
-| `HF_CHROME_PATH` | none | Pin a specific browser binary. |
+- `server` — bind address and port, and how often Home Assistant is polled.
+  The default binds `0.0.0.0:8080` so the frame can reach it, which also puts
+  the (read-only, unauthenticated) web dashboard on your LAN.
+- `instances` — name, URL and token for each Home Assistant. Each instance
+  with a `weather.*` entity gets a forecast; set `weather:` to pick a specific
+  entity or `false` to hide it. A `batteries:` list limits battery monitoring
+  to those sensors, and an `activity:` list names the door and motion sensors
+  to show.
+- `panels` — which temperature sensors to show, grouped as you like. An
+  instance without a panel shows all of its temperature sensors.
+- `attention` — thresholds for what needs a look, plus `watch` / `ignore`
+  glob patterns.
+- `frame` — which house the frame hangs in, orientation, threshold, dithering,
+  locale and clock, and the token guarding `/frame.bin`.
+- `services` — where the frame's calendar and to-do list come from.
+
+Restart the server after editing the config.
+
+## What the frame shows
+
+Everything at once, on one screen. Family content gets the large type; the
+house is a compact strip; problems only take space when there are any.
+
+| Area | Source |
+| --- | --- |
+| Clock, date | The server's clock, in the home instance's time zone. |
+| Weather | The `weather.*` entity of the house the frame hangs in (`frame.home`). |
+| Coming up | Calendar events whose title starts with ⭐, soonest first. |
+| To do | Open items of Home Assistant to-do lists. |
+| House strip | The home instance's panel temperatures (up to twelve; a low reading is inverted, a heating thermostat shows its target) and its `activity:` doors and motion sensors. |
+| Black band | The attention items of **every** house. Absent when all is well. |
+| Bottom line | One summary per other house (temperature range, open doors, items to check), then the device's own WiFi, memory and uptime. |
+
+When the lower bands grow, the columns above shrink and drop whole rows — the
+forecast strip first, then to-dos, then later events — rather than clipping.
+
+### Calendar and to-dos
+
+Both are read through Home Assistant, so the server holds no Google
+credentials:
+
+1. In Home Assistant, add the **Google Calendar** integration (Settings →
+   Devices & services → Add integration). Each calendar becomes a
+   `calendar.*` entity.
+2. Start an event's title with ⭐ to put it on the frame. The star is stripped
+   before display; everything unstarred stays private to the calendar.
+3. To-do lists (the built-in *Local to-do*, Google Tasks, Todoist, …) are
+   `todo.*` entities and need no marker.
+
+By default every `calendar.*` and `todo.*` entity of the frame's home instance
+is read; `services.calendar.entities` and `services.todo.entities` narrow that
+down. `homeframe/services.py` is the seam: the two fetch functions there are
+all the rest of the server knows about either source.
+
+## The web dashboard
+
+The layout is sized to fit one screen: on a 4K display at native resolution it
+is the 1920px layout magnified 2×. Every gauge carries a sparkline of the range
+picked in the top bar (6H / 24H / 7D); the **Charts** button next to it adds
+one large history chart per panel, with a line per sensor.
+
+Click a gauge to open that sensor's history as a large chart (24H / 7D / 30D;
+`←` / `→` switch, `Esc` closes). Ranges up to ten days come from Home
+Assistant's history; 30D uses its long-term statistics (hourly averages).
+Click a door or motion sensor to list its recent events.
+
+Keyboard: `?` help, `F` fullscreen, `H` history charts, `1`–`4` or `←` / `→`
+history range, `R` refresh now.
+
+### What raises attention
+
+The same rules feed the Attention column and the frame's black band.
+
+| Condition | Severity |
+|---|---|
+| Instance unreachable or token rejected | critical |
+| Shown sensor, door/motion sensor, watched battery sensor or `watch`ed entity is `unavailable` | critical |
+| Temperature below `temperature_critical` | critical |
+| Temperature below `temperature_low` | warning |
+| Battery at or below `battery_low` | warning |
+
+Entities that belong to the same Home Assistant device count as one: a dead
+sensor raises a single "offline" entry, and its battery is listed under the
+name the device has elsewhere on the dashboard.
+
+If updates stop arriving, the last values stay on screen, so the dashboard
+warns about that separately: after `server.stale_after` minutes without an
+answer from an instance, its chip in the top bar and a banner pulse red. On
+the frame, the house is marked "not answering".
 
 ## Still images
 
@@ -52,7 +151,7 @@ Drop a PNG into `server/images/` and it is immediately available to the panel:
 a portrait mount (it gets rotated into the panel's native scanline order).
 
 Both endpoints accept per-request overrides, so a texture can be tuned without
-touching how the dashboard renders:
+touching how the frame renders:
 
 ```
 /chalk.png?dither=1              # error diffusion, for anything photographic
@@ -63,13 +162,10 @@ Use `?dither=1` for photographs, textures and anything with tonal range —
 a hard threshold collapses a gradient into two flat regions. Leave it off for
 text and line art, where dithering just makes edges fuzzy.
 
-`images/testramp.png` is a gradient-and-steps calibration target for comparing
-the two.
-
 To put a still on the real panel, point the firmware at it: set
 `HF_FRAME_PATH` in `firmware/include/secrets.h` to `/chalk.bin` and reflash.
-It is a compile-time constant, so switching back to the dashboard means
-another flash.
+It is a compile-time constant, so switching back to the frame means another
+flash.
 
 ## Designing for 1 bit
 
@@ -80,36 +176,62 @@ below is ink, and there is nothing in between.
 - Body text 18px and up, weight 600+. Antialiasing eats thin strokes.
 - Borders 2–3px. A 1px hairline may vanish entirely.
 - No shadows, gradients, or opacity. They threshold into hard-edged blobs.
-- Convey hierarchy with size, weight and rules — not colour or tone.
+- Convey hierarchy with size, weight and rules — not colour or tone. A
+  problem is inverted (white on black); an absence is a dashed border.
 
-Check every change against `/preview.png`, not `/dashboard`. The browser view
+Check every change against `/preview.png`, not `/frame`. The browser view
 lies to you: it has antialiasing and greys the panel does not.
 
-`views/dashboard.html` is laid out for landscape. Switching `HF_ORIENTATION` to
-portrait rotates correctly but the layout needs reworking for the taller shape.
-
-## Wiring real data
-
-`src/data.js` holds one function per panel. `weather()` is live against
-Open-Meteo (no API key, cached 10 minutes); `agenda()` and `notes()` still
-return placeholders — Home Assistant's REST API covers calendars and to-do
-lists.
-
-`collect()` settles each source independently, so one dead upstream blanks its
-own panel rather than the whole frame.
+`web/frame/index.html` is laid out for landscape. Setting `frame.orientation`
+to portrait rotates correctly but the layout needs reworking for the taller
+shape.
 
 ## Running it for real
 
 Any always-on box on the LAN works: a Pi, a NAS, whatever runs Home Assistant.
 Plain HTTP is deliberate — it keeps ~40KB of TLS buffers free on a no-PSRAM
-ESP32, and the traffic never leaves your network. Use `HF_TOKEN` if you want
-the endpoint authenticated.
+ESP32, and the traffic never leaves your network. Set `frame.token` if you
+want `/frame.bin` authenticated.
 
-On a headless Linux host, install fonts (`fonts-dejavu`, or Inter) or the
-dashboard will render in a fallback face.
+`deploy/homeframe.service` is a systemd user service. It expects the
+repository in `~/source/homeframe` and needs no root, apart from enabling
+lingering once so it starts at boot:
 
-The server binds `0.0.0.0` rather than Node's default IPv6 wildcard. On the
-dual-stack socket Node opens by default, the ESP32's IPv4 SYNs went unanswered
-— the device saw a 20-second connect timeout while `curl` from the host itself
-still worked, because macOS routes a host's own IP over loopback. Binding IPv4
+```sh
+mkdir -p ~/.config/systemd/user
+cp deploy/homeframe.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now homeframe
+sudo loginctl enable-linger $USER
+```
+
+```sh
+systemctl --user restart homeframe         # after changing config.yaml or the code
+journalctl --user-unit homeframe -f        # follow the log
+```
+
+The server binds the IPv4 wildcard on purpose. On a dual-stack socket the
+ESP32's IPv4 SYNs once went unanswered — the device saw a 20-second connect
+timeout while `curl` from the host itself still worked. Binding IPv4
 explicitly avoids the whole question.
+
+## Layout
+
+```
+homeframe/app.py           entry point, HTTP routes
+homeframe/config.py        config.yaml loading + validation
+homeframe/ha.py            Home Assistant REST + WebSocket client
+homeframe/hub.py           polling, state cache, history fetch + downsampling
+homeframe/dashboard.py     panels + attention rules
+homeframe/weather.py       weather entity selection + forecast shaping
+homeframe/services.py      starred calendar events, to-do items
+homeframe/demo.py          synthetic instances for --demo
+homeframe/frame/view.py    what the frame shows, from the same state
+homeframe/frame/render.py  headless Chromium render, cache
+homeframe/frame/pack.py    greyscale → 1bpp in the panel's bit order
+homeframe/frame/still.py   static images for the panel
+homeframe/frame/device.py  telemetry the device reports with each fetch
+web/dashboard/             the web dashboard (plain HTML/CSS/JS, no build step)
+web/frame/                 the frame page
+tests/                     pytest: packing, calendar and to-do filtering
+```

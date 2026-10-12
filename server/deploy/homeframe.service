@@ -1,0 +1,24 @@
+# systemd user service: runs the server as the logged-in user, no root needed.
+# Expects the repository in ~/source/homeframe with the virtualenv in server/.venv.
+#
+#   mkdir -p ~/.config/systemd/user
+#   cp deploy/homeframe.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now homeframe
+#   sudo loginctl enable-linger $USER    # once, so it starts at boot without a login
+
+[Unit]
+Description=homeframe server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/source/homeframe/server
+ExecStart=%h/source/homeframe/server/.venv/bin/python -m homeframe
+Environment=PYTHONUNBUFFERED=1
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

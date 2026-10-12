@@ -1,13 +1,18 @@
 # homeframe
 
 A 13.3" e-paper home dashboard. An ESP32 mounted behind an A4-sized e-ink panel
-shows the day at a glance — clock, weather, calendar, notes — and updates
-quietly in place.
+shows the family's day at a glance — clock, weather, starred calendar events,
+to-dos, and how the house is doing — and updates quietly in place.
+
+The same server is also a live web dashboard on top of one or more Home
+Assistant instances: temperature gauges, history charts, doors and motion, and
+an Attention column for everything that needs a look. One core reads Home
+Assistant; the frame and the web dashboard are two views of it.
 
 ```
 homeframe/
 ├── firmware/   ESP32 firmware (PlatformIO + Arduino + GxEPD2)
-├── server/     Renders the dashboard to a 1bpp frame (Node + Puppeteer)
+├── server/     Home Assistant core, web dashboard, e-paper renderer (Python)
 ├── hardware/   Enclosure and mount models
 └── docs/       Hardware notes, wiring, datasheets
 ```
@@ -30,14 +35,18 @@ Wiring is fixed by the ESP32-L board and matches GxEPD2's documented pinout:
 
 ## How it works
 
-The dashboard is rendered as HTML on a server on your network, converted to a
-packed 1-bit image, and fetched by the ESP32, which streams it straight into
-the panel's controller RAM.
+The server polls every Home Assistant instance and keeps their state in memory.
+The frame is rendered from that as HTML, converted to a packed 1-bit image, and
+fetched by the ESP32, which streams it straight into the panel's controller
+RAM. Browsers get the web dashboard from the same process.
 
 ```
  ┌───────────── server (any always-on box) ─────────────┐
- │  data sources → dashboard.html → headless Chrome     │
- │  → PNG → greyscale → 1bpp pack → /frame.bin + ETag   │
+ │  Home Assistant × N → core (state, attention rules,  │
+ │  weather, calendar, to-dos)                          │
+ │    ├─ /        web dashboard, live in a browser      │
+ │    └─ /frame   → headless Chromium → PNG → greyscale │
+ │                → 1bpp pack → /frame.bin + ETag       │
  └──────────────────────┬───────────────────────────────┘
                         │ HTTP, 81600 bytes (or 304)
  ┌──────────────────────▼───────────────────────────────┐
@@ -68,9 +77,13 @@ clear accumulated ghosting.
 ```bash
 # 1. Server
 cd server
-npm install && npx puppeteer browsers install chrome
-npm start
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m homeframe --demo     # synthetic data, no Home Assistant needed
 open http://localhost:8080/preview.png   # exactly what the panel will show
+open http://localhost:8080/              # the web dashboard
+
+cp config.example.yaml config.yaml       # then: your Home Assistant URLs + tokens
+.venv/bin/python -m homeframe            # the real thing; config.yaml is git-ignored
 
 # 2. Firmware
 cd ../firmware
@@ -88,8 +101,9 @@ Working end to end on hardware. Measured on the real panel:
 | Fast partial refresh | 0.48 s | 0.6 s |
 | Frame transfer (81600 B over WiFi) | 2.7-10 s | - |
 
-Weather is live from Open-Meteo. The agenda and notes panels are still
-placeholders — see `server/src/data.js`.
+Everything on the frame is live from Home Assistant: weather, temperatures,
+doors and motion, attention items, starred calendar events and to-do lists —
+see [server/README.md](server/README.md).
 
 Long-run behaviour is unproven: ghosting over days of partial refreshes, and
 whether the frame-transfer time drifts, both still need watching.

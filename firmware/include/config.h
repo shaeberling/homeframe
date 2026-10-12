@@ -29,7 +29,7 @@
 // Rotation for on-device drawing only: 0/2 = landscape, 1/3 = portrait.
 // This does NOT rotate server-rendered frames — those arrive as native
 // 960x680 scanlines, so the server must rotate them to match. Keep
-// HF_DISPLAY_ROTATION and the server's ORIENTATION in agreement.
+// HF_DISPLAY_ROTATION and the server's frame.orientation in agreement.
 #define HF_DISPLAY_ROTATION 0
 
 // ------------------------------------------------------------------ refresh

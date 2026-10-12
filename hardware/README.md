@@ -28,7 +28,7 @@ connector, since the frame is mains-powered and the cable stays attached.
 ## Open questions
 
 - Portrait or landscape mount? It changes the enclosure and the dashboard
-  layout, and must match `HF_ORIENTATION` on the server.
+  layout, and must match `frame.orientation` in the server's `config.yaml`.
 - Magnetic, cleat, or standoff mounting?
 - Front glazing, or bare panel? E-ink has no backlight, so glazing costs
   contrast and adds reflections.

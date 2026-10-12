@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>homeframe</title>
+<style>
+  /* Designed for a 1-bit panel: pure black on pure white, no greys, no
+     gradients, no thin hairlines. Anything mid-tone becomes threshold noise.
+     Keep body text at 18px+ and prefer 600/700 weights. */
+  :root {
+    --ink: #000;
+    --paper: #fff;
+    --rule: 3px solid #000;
+    --gap: 18px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100vw; height: 100vh; overflow: hidden;
+    background: var(--paper); color: var(--ink);
+    font-family: -apple-system, "Inter", "Helvetica Neue", Helvetica, "DejaVu Sans", Arial, sans-serif;
+    -webkit-font-smoothing: none;
+  }
+  body { display: flex; flex-direction: column; padding: var(--gap); }
+  [hidden] { display: none !important; }
+  ul { list-style: none; }
+
+  h2 {
+    font-size: 17px; font-weight: 700; letter-spacing: 0.16em;
+    text-transform: uppercase; border-bottom: var(--rule);
+    padding-bottom: 6px; margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  h2 .aside { letter-spacing: 0.06em; }
+
+  /* Family content gets the large type and whatever height is left over.
+     min-height:0 lets the columns shrink instead of pushing the bands below
+     off the panel; fit() then drops the rows that no longer fit. */
+  main { flex: 1; display: flex; gap: var(--gap); min-height: 0; }
+  .col { display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: hidden; }
+  .col.left { width: 330px; flex-shrink: 0; }
+  .col.right { flex: 1; border-left: var(--rule); padding-left: var(--gap); }
+
+  .clock { font-size: 104px; font-weight: 700; line-height: 0.9; letter-spacing: -0.04em; white-space: nowrap; }
+  .clock.h12 { font-size: 92px; }
+  .date { font-size: 26px; font-weight: 600; margin-top: 8px; }
+
+  .now { display: flex; align-items: center; gap: 14px; }
+  .temp-now { font-size: 58px; font-weight: 700; line-height: 1; }
+  .summary { font-size: 23px; font-weight: 600; }
+  .range { font-size: 19px; font-weight: 600; margin-top: 2px; }
+  .forecast { display: flex; gap: 10px; margin-top: 10px; }
+  .forecast > div { flex: 1; border: var(--rule); padding: 5px 8px; min-width: 0; }
+  .forecast .day { font-size: 16px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  .forecast .hi { font-size: 26px; font-weight: 700; }
+  .forecast .lo { font-size: 18px; font-weight: 600; }
+  .forecast .cond { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+
+  .agenda li {
+    display: flex; gap: 16px; align-items: baseline;
+    padding: 8px 0; border-bottom: 2px solid #000;
+  }
+  .agenda .when { font-size: 20px; font-weight: 700; width: 172px; flex-shrink: 0; white-space: nowrap; }
+  .agenda .title { font-size: 25px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .agenda li.today .when { background: #000; color: #fff; padding: 1px 8px; margin-left: -8px; width: 180px; }
+
+  .todos { display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; }
+  .todos li {
+    font-size: 21px; font-weight: 600; padding: 5px 0 5px 28px; position: relative;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .todos li::before {
+    content: ""; position: absolute; left: 0; top: 9px;
+    width: 16px; height: 16px; border: 3px solid #000;
+  }
+  .empty, .more { font-size: 20px; font-weight: 600; padding: 8px 0; }
+
+  /* The house the frame hangs in: compact, no decoration. */
+  #house { margin-top: 12px; flex-shrink: 0; }
+  .temps { display: grid; gap: 8px; }
+  .temps > div { border: var(--rule); padding: 4px 8px 5px; min-width: 0; }
+  /* Sensor names are as long as their owner made them: two lines, then cut. */
+  .temps .name {
+    font-size: 14px; font-weight: 700; line-height: 1.15; max-height: 2.3em; overflow: hidden;
+  }
+  .temps .value { font-size: 27px; font-weight: 700; line-height: 1.1; white-space: nowrap; }
+  .temps .target { font-size: 15px; font-weight: 700; margin-left: 4px; }
+  /* No grey to dim with: a problem is inverted, an absence is dashed. */
+  .temps > div.alert { background: #000; color: #fff; }
+  .temps > div.offline { border-style: dashed; }
+
+  .doors { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; max-height: 76px; overflow: hidden; }
+  .doors > div { font-size: 17px; font-weight: 600; border: 2px solid #000; padding: 3px 9px; white-space: nowrap; }
+  .doors > div b { font-weight: 700; }
+  .doors > div.active { background: #000; color: #fff; }
+  .doors > div.offline { border-style: dashed; }
+
+  /* Only there when something needs a look, and then impossible to miss. */
+  #attention {
+    margin-top: 10px; flex-shrink: 0; background: #000; color: #fff; padding: 7px 12px 8px;
+    display: grid; grid-template-columns: 1fr 1fr; column-gap: 20px; row-gap: 3px;
+  }
+  #attention div { font-size: 18px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #attention .where { font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; margin-right: 6px; }
+  #attention .mark {
+    display: inline-block; width: 20px; text-align: center; margin-right: 8px;
+    background: #fff; color: #000;
+  }
+  #attention .warning .mark { background: #000; color: #fff; outline: 2px solid #fff; outline-offset: -2px; }
+
+  /* Status bar. Deliberately quiet: it is diagnostics, not content, so it
+     reads at a glance without competing with the frame above it. */
+  footer {
+    display: flex; align-items: center; gap: 20px;
+    border-top: var(--rule); margin-top: 10px; padding-top: 7px;
+    font-size: 16px; font-weight: 600; flex-shrink: 0; white-space: nowrap;
+  }
+  footer .elsewhere { flex: 1; overflow: hidden; text-overflow: ellipsis; font-size: 17px; }
+  footer .item { display: flex; align-items: center; gap: 6px; }
+  footer .k { font-size: 13px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+  .wifi { width: 32px; height: 28px; display: block; }
+</style>
+</head>
+<body>
+  <main>
+    <div class="col left" id="left">
+      <div>
+        <div class="clock" id="clock">--:--</div>
+        <div class="date" id="date"></div>
+      </div>
+
+      <section id="weather-panel">
+        <h2><span>Weather</span><span class="aside" id="wx-location"></span></h2>
+        <div class="now">
+          <span class="temp-now" id="temp-now"></span>
+          <div>
+            <div class="summary" id="summary"></div>
+            <div class="range" id="range"></div>
+          </div>
+        </div>
+        <div class="forecast" id="forecast"></div>
+      </section>
+    </div>
+
+    <div class="col right" id="right">
+      <section id="agenda-panel">
+        <h2>Coming up</h2>
+        <ul class="agenda" id="agenda"></ul>
+      </section>
+
+      <section id="todo-panel">
+        <h2>To do</h2>
+        <ul class="todos" id="todos"></ul>
+      </section>
+    </div>
+  </main>
+
+  <section id="house">
+    <h2><span id="house-name"></span><span class="aside" id="house-note"></span></h2>
+    <div class="temps" id="temps"></div>
+    <div class="doors" id="doors"></div>
+  </section>
+
+  <section id="attention" hidden></section>
+
+  <footer>
+    <span class="elsewhere" id="elsewhere"></span>
+    <span class="item" id="dev-wifi"><span id="wifi-icon"></span><span id="wifi-dbm"></span></span>
+    <span class="item"><span class="k">mem</span><span id="dev-mem"></span></span>
+    <span class="item"><span class="k">soc</span><span id="dev-temp"></span></span>
+    <span class="item"><span class="k">up</span><span id="dev-up"></span></span>
+    <span class="item"><span class="k">link</span><span id="dev-link"></span></span>
+    <span class="item"><span id="dev-fw"></span></span>
+  </footer>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (text) => String(text ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const deg = (value, digits = 0) => (value === null || value === undefined ? '--' : `${value.toFixed(digits)}°`);
+
+  // Everything is told in the frame's time zone, not the server's.
+  let data;
+  const fmt = (options) => new Intl.DateTimeFormat(data.locale, { timeZone: data.time_zone || undefined, ...options });
+  const clockTime = (ms) => fmt({ hour: data.hour12 ? 'numeric' : '2-digit', minute: '2-digit', hour12: data.hour12 }).format(ms);
+  // "YYYY-MM-DD" of an instant, as the calendar on the wall would have it.
+  const isoDate = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: data.time_zone || undefined }).format(ms);
+  const dayNumber = (iso) => Date.parse(`${iso}T00:00:00Z`) / 86400000;
+  // Days from today to a date; a date has no zone, so both ends are pinned to UTC.
+  const daysAhead = (iso) => dayNumber(iso) - dayNumber(isoDate(data.now));
+  const utcDay = (iso, options) => new Intl.DateTimeFormat(data.locale, { timeZone: 'UTC', ...options }).format(new Date(`${iso}T00:00:00Z`));
+
+  // short: beside a time, where only "Tomorrow" still has room to be spelled out.
+  function dayLabel(iso, short) {
+    const ahead = daysAhead(iso);
+    if (ahead <= 0) return 'Today';  // including one that began on an earlier day
+    if (ahead === 1) return 'Tomorrow';
+    if (ahead < 7) return utcDay(iso, { weekday: short ? 'short' : 'long' });
+    return utcDay(iso, short ? { day: 'numeric', month: 'short' } : { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+
+  function renderWeather(w) {
+    if (!w) { $('weather-panel').hidden = true; return; }
+    $('wx-location').textContent = data.home.name;
+    $('temp-now').textContent = deg(w.temperature);
+    $('summary').textContent = w.condition;
+    const today = w.days.find((d) => daysAhead(isoDate(d.time)) === 0);
+    const range = [];
+    if (today) {
+      if (today.high !== null) range.push(today.low === null ? deg(today.high) : `${deg(today.high)} / ${deg(today.low)}`);
+      if (today.precipitation) range.push(`${today.precipitation} ${w.precipitation_unit} rain`);
+    }
+    $('range').textContent = range.join(' · ');
+    $('range').hidden = range.length === 0;
+    // Today is already shown above, so the strip covers the next three days.
+    const next = w.days.filter((d) => daysAhead(isoDate(d.time)) > 0).slice(0, 3);
+    $('forecast').hidden = next.length === 0;
+    $('forecast').innerHTML = next.map((d) => `
+      <div>
+        <div class="day">${esc(utcDay(isoDate(d.time), { weekday: 'short' }))}</div>
+        <div class="hi">${deg(d.high)}</div>
+        <div class="lo">${deg(d.low)}</div>
+        <div class="cond">${esc(d.condition)}</div>
+      </div>`).join('');
+  }
+
+  function renderAgenda(events) {
+    if (!events) {
+      $('agenda').innerHTML = '<li class="empty">No calendar connected</li>';
+      return;
+    }
+    $('agenda').innerHTML = events.length
+      ? events.map((e) => {
+          const iso = e.all_day ? e.date : isoDate(e.start);
+          // An event of today needs no day, only its time.
+          const when = e.all_day ? dayLabel(iso)
+            : e.start <= data.now ? 'Now'
+            : daysAhead(iso) === 0 ? clockTime(e.start)
+            : `${dayLabel(iso, true)} ${clockTime(e.start)}`;
+          return `<li class="${daysAhead(iso) <= 0 ? 'today' : ''}">
+            <span class="when">${esc(when)}</span><span class="title">${esc(e.title)}</span></li>`;
+        }).join('')
+      : '<li class="empty">Nothing starred coming up</li>';
+  }
+
+  function renderTodos(items) {
+    if (!items || items.length === 0) { $('todo-panel').hidden = true; return; }
+    $('todos').innerHTML = items.map((i) => `<li>${esc(i.title)}</li>`).join('');
+  }
+
+  function renderHouse() {
+    $('house-name').textContent = data.home.name;
+    $('house-note').textContent = data.home.status === 'error' ? 'not answering · last known values' : '';
+    $('temps').innerHTML = data.temperatures.map((t) => {
+      const kind = t.status === 'offline' ? 'offline' : t.status === 'low' || t.status === 'critical' ? 'alert' : '';
+      const target = t.target === null ? '' : `<span class="target">&rarr; ${deg(t.target)}</span>`;
+      return `<div class="${kind}">
+        <div class="name">${esc(t.name)}</div>
+        <div class="value">${t.status === 'offline' ? 'offline' : deg(t.value, 1)}${target}</div>
+      </div>`;
+    }).join('');
+    $('temps').hidden = data.temperatures.length === 0;
+    // Up to seven in one row; more are split evenly over two.
+    const count = data.temperatures.length;
+    $('temps').style.gridTemplateColumns = `repeat(${Math.max(4, Math.ceil(count / (count > 7 ? 2 : 1)))}, 1fr)`;
+
+    const words = { door: ['open', 'closed'], motion: ['motion', 'clear'], other: ['on', 'off'] };
+    $('doors').innerHTML = data.activity.map((a) => {
+      if (a.status !== 'ok') {
+        return `<div class="offline"><b>${esc(a.name)}</b> ${a.status === 'offline' ? 'offline' : '--'}</div>`;
+      }
+      const state = words[a.kind][a.active ? 0 : 1];
+      // Today a time says enough; anything older only needs its day.
+      const since = a.since === null ? ''
+        : daysAhead(isoDate(a.since)) === 0 ? clockTime(a.since)
+        : utcDay(isoDate(a.since), { weekday: 'short' });
+      return `<div class="${a.active ? 'active' : ''}"><b>${esc(a.name)}</b> ${state} ${esc(since)}</div>`;
+    }).join('');
+    $('doors').hidden = data.activity.length === 0;
+    $('house').hidden = data.temperatures.length === 0 && data.activity.length === 0;
+  }
+
+  function renderAttention() {
+    const items = data.attention;
+    $('attention').hidden = items.length === 0;
+    const several = data.elsewhere.length > 0;
+    // A few items get a full line each; more share the band in two columns.
+    $('attention').style.gridTemplateColumns = items.length > 3 ? '1fr 1fr' : '1fr';
+    $('attention').innerHTML = items.map((a) => `
+      <div class="${a.severity}"><span class="mark">!</span>${
+        several ? `<span class="where">${esc(a.instance)}</span>` : ''}${esc(a.title)}${
+        a.detail && a.detail !== a.title ? ` · ${esc(a.detail)}` : ''}</div>`).join('')
+      + (data.attention_more ? `<div>+ ${data.attention_more} more on the dashboard</div>` : '');
+  }
+
+  // One line per house the frame does not hang in.
+  function renderElsewhere() {
+    $('elsewhere').innerHTML = data.elsewhere.map((h) => {
+      const parts = [];
+      if (h.status === 'error') parts.push('not answering');
+      else if (h.status === 'connecting') parts.push('connecting');
+      else {
+        if (h.low !== null) parts.push(h.low.toFixed(0) === h.high.toFixed(0) ? deg(h.low) : `${h.low.toFixed(0)}–${deg(h.high)}`);
+        if (h.doors) parts.push(h.open ? `${h.open} open` : 'all closed');
+        parts.push(h.attention ? `${h.attention} to check` : 'all well');
+      }
+      return `<b>${esc(h.name)}</b>&nbsp; ${esc(parts.join(' · '))}`;
+    }).join(' &nbsp;|&nbsp; ');
+  }
+
+  // Four nested arcs over a dot. Active arcs are solid and heavy; inactive
+  // ones are dotted rather than grey, because the panel has no grey — a
+  // 50% tint would threshold to solid black or vanish entirely.
+  function wifiIcon(bars) {
+    // Geometry is spacing-driven: at ~88dpi a gap under about 2px between
+    // strokes closes up when the greyscale is thresholded, and the fan reads
+    // as one solid wedge. Radii are spaced 4.5 units against a 2.4 stroke.
+    const cx = 14, cy = 21;
+    const arcs = [4, 8.5, 13, 17.5].map((r, i) => {
+      const d = (0.7071 * r).toFixed(2);
+      const x1 = (cx - d).toFixed(2), x2 = (cx + Number(d)).toFixed(2);
+      const y = (cy - d).toFixed(2);
+      const on = i < bars;
+      return `<path d="M ${x1},${y} A ${r},${r} 0 0,1 ${x2},${y}"
+        fill="none" stroke="#000" stroke-linecap="round"
+        stroke-width="${on ? 2.4 : 1.5}"${on ? '' : ' stroke-dasharray="0.1 3.6"'} />`;
+    }).join('');
+    const dot = `<circle cx="${cx}" cy="${cy}" r="2"
+      fill="${bars > 0 ? '#000' : 'none'}" stroke="#000" stroke-width="1.5" />`;
+    return `<svg viewBox="0 0 28 24" class="wifi">${arcs}${dot}</svg>`;
+  }
+
+  function formatUptime(min) {
+    if (min < 60) return `${min}m`;
+    const h = Math.floor(min / 60);
+    return h < 24 ? `${h}h ${min % 60}m` : `${Math.floor(h / 24)}d ${h % 24}h`;
+  }
+
+  function renderDevice(d) {
+    if (!d) {
+      document.querySelectorAll('footer .item').forEach((item) => { item.hidden = true; });
+      $('dev-wifi').hidden = false;
+      $('wifi-dbm').textContent = 'awaiting first device check-in';
+      return;
+    }
+    $('wifi-icon').innerHTML = wifiIcon(d.bars);
+    $('wifi-dbm').textContent = d.rssi === null ? '--' : `${d.rssi} dBm`;
+    $('dev-mem').textContent = d.heapFree === null ? '--' : `${Math.round(d.heapFree / 1024)} KB`;
+    $('dev-temp').textContent = d.socTemp === null ? '--' : `${d.socTemp.toFixed(1)}°C`;
+    $('dev-up').textContent = formatUptime(d.uptimeMin);
+    $('dev-link').textContent = d.transferMs === null ? '--' : `${d.transferMs} ms`;
+    $('dev-fw').textContent = d.version ? `v${d.version}` : '';
+  }
+
+  // The bands below the columns take the height they need, so on a busy day
+  // the columns are shorter than their content. Drop what does not fit, least
+  // important first, rather than showing half a row.
+  function fit() {
+    const overflows = (el) => el.scrollHeight > el.clientHeight + 1;
+    const left = $('left');
+    if (overflows(left)) $('forecast').hidden = true;
+
+    const right = $('right');
+    const trim = (list, keep) => {
+      let dropped = 0;
+      while (overflows(right) && list.children.length > keep) { list.lastElementChild.remove(); dropped += 1; }
+      return dropped;
+    };
+    trim($('todos'), 2);
+    trim($('agenda'), 1);
+    if (overflows(right)) $('todo-panel').hidden = true;
+  }
+
+  (async () => {
+    try {
+      data = await (await fetch('/api/frame')).json();
+      $('clock').textContent = clockTime(data.now);
+      $('clock').classList.toggle('h12', data.hour12);
+      $('date').textContent = fmt({ weekday: 'long', day: 'numeric', month: 'long' }).format(data.now);
+      renderWeather(data.weather);
+      renderAgenda(data.agenda);
+      renderTodos(data.todos);
+      renderHouse();
+      renderAttention();
+      renderElsewhere();
+      renderDevice(data.device);
+    } catch (err) {
+      $('date').textContent = 'frame data unavailable';
+      console.error(err);
+    } finally {
+      // The renderer waits on this before screenshotting.
+      await document.fonts.ready;
+      fit();
+      window.__hfReady = true;
+    }
+  })();
+</script>
+</body>
+</html>
