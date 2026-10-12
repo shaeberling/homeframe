@@ -492,8 +492,7 @@ function renderBatteries(panels) {
       h('header', { class: 'panel-head' },
         h('h2', {}, 'Batteries'),
         h('span', { class: 'tag' }, panel.instance),
-        h('span', { class: 'label panel-note' },
-          `${panel.items.length} sensors · ${flagged ? `${flagged} need attention` : 'all good'}`)),
+        h('span', { class: 'label panel-note' }, flagged ? `${flagged} of ${panel.items.length} to check` : `${panel.items.length} · all good`)),
       h('ul', { class: 'battery-grid' }, ...panel.items.map((item) => {
         const value = item.status === 'offline' ? 'Offline'
           : item.level != null ? `${Math.round(item.level)} %`

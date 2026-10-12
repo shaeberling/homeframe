@@ -34,18 +34,20 @@
           <p class="placeholder">Connecting…</p>
         </div>
         <div class="panels" id="activity"></div>
-        <div class="panels" id="batteries"></div>
       </div>
     </main>
 
-    <aside class="attention frame" id="attention" data-level="clear" aria-live="polite">
-      <header class="attention-head">
-        <h2>Attention</h2>
-        <span class="attention-count" id="attention-count">0</span>
-      </header>
-      <p class="attention-summary" id="attention-summary"></p>
-      <ul class="attention-list" id="attention-list"></ul>
-    </aside>
+    <div class="side">
+      <aside class="attention frame" id="attention" data-level="clear" aria-live="polite">
+        <header class="attention-head">
+          <h2>Attention</h2>
+          <span class="attention-count" id="attention-count">0</span>
+        </header>
+        <p class="attention-summary" id="attention-summary"></p>
+        <ul class="attention-list" id="attention-list"></ul>
+      </aside>
+      <div class="panels" id="batteries"></div>
+    </div>
   </div>
 
   <div class="tooltip" id="tooltip" hidden></div>
