@@ -268,10 +268,11 @@
         return `<div class="offline"><b>${esc(a.name)}</b> ${a.status === 'offline' ? 'offline' : '--'}</div>`;
       }
       const state = words[a.kind][a.active ? 0 : 1];
-      // Today a time says enough; anything older only needs its day.
-      const since = a.since === null ? ''
-        : daysAhead(isoDate(a.since)) === 0 ? clockTime(a.since)
-        : utcDay(isoDate(a.since), { weekday: 'short' });
+      // Today a time says enough; this week its day; anything older its date.
+      const age = a.since === null ? null : -daysAhead(isoDate(a.since));
+      const since = age === null ? ''
+        : age === 0 ? clockTime(a.since)
+        : utcDay(isoDate(a.since), age < 7 ? { weekday: 'short' } : { day: 'numeric', month: 'short' });
       return `<div class="${a.active ? 'active' : ''}"><b>${esc(a.name)}</b> ${state} ${esc(since)}</div>`;
     }).join('');
     $('doors').hidden = data.activity.length === 0;
