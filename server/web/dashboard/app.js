@@ -78,6 +78,13 @@ function applyScale() {
   scale = window.innerWidth >= 2400 ? window.innerWidth / DESIGN_WIDTH : 1;
   document.body.style.zoom = scale;
   document.documentElement.style.setProperty('--viewport-height', `${window.innerHeight / scale}px`);
+  fitSide();
+}
+
+// The side column starts below the top bar (and the banner, when there is
+// one); it may only be as tall as what is left of the screen from there.
+function fitSide() {
+  document.documentElement.style.setProperty('--side-top', `${document.querySelector('.side').offsetTop}px`);
 }
 
 // ── DOM helpers ──────────────────────────────────────────────
@@ -1043,6 +1050,7 @@ function render() {
   renderActivity(dash.activity || []);
   renderBatteries(dash.batteries || []);
   renderAttention(dash.attention);
+  fitSide();
   if ($('#detail').open) renderDetail();
 }
 

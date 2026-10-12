@@ -404,14 +404,15 @@ button { font: inherit; color: inherit; }
 .battery-meter { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--tone-dim); overflow: hidden; }
 .battery-meter i { display: block; height: 100%; border-radius: 2px; background: var(--tone); box-shadow: 0 0 6px var(--tone); }
 
-/* The battery lists sit in the side column, so they are packed tight: two
+/* The battery lists sit in the side column, so they are packed tight: three
    narrow columns, and a list too long for the screen scrolls on its own. */
 .panel.batteries { flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 10px 12px; }
-.panel.batteries .battery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 14px; min-height: 0; overflow-y: auto; padding: 3px 5px; margin: -3px -5px; }
-.panel.batteries .battery { gap: 3px 6px; }
-.panel.batteries .battery-name { font-size: 12px; }
-.panel.batteries .battery-value { font-size: 11px; }
-.panel.batteries .battery-meter { height: 3px; }
+.panel.batteries .panel-head { margin-bottom: 7px; }
+.panel.batteries .battery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px 12px; min-height: 0; overflow-y: auto; padding: 3px 5px; margin: -3px -5px; }
+.panel.batteries .battery { gap: 2px 4px; }
+.panel.batteries .battery-name { font-size: 12px; line-height: 1.2; }
+.panel.batteries .battery-value { font-size: 10px; letter-spacing: 0; }
+.panel.batteries .battery-meter { height: 2px; }
 .panel.batteries .battery[data-status]::after { inset: -3px -5px; }
 
 /* ── Doors & motion ─────────────────────────────────────── */
@@ -535,7 +536,7 @@ body:not(.charts) .chart { display: none; }
   flex-direction: column;
   gap: 12px;
   min-width: 0;
-  max-height: calc(var(--viewport-height, 100vh) - 24px);
+  max-height: calc(var(--viewport-height, 100vh) - var(--side-top, 12px) - 12px);
 }
 .side > .panels { display: contents; }
 
