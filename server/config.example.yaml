@@ -25,7 +25,9 @@ instances:
     #     name: Hallway
     # batteries:                           # watch and list only these battery sensors
     #   - sensor.front_door_battery        # (ids or globs); without this key every
-    #   - sensor.*_thermostat_battery      # battery sensor of the instance is watched
+    #   - sensor.*_thermostat_battery      # battery sensor of the instance is watched;
+    #                                      # `batteries: []` shows the panel empty
+    #                                      # and watches none
 
   - id: cabin
     name: Cabin

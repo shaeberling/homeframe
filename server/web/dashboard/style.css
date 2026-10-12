@@ -382,6 +382,7 @@ button { font: inherit; color: inherit; }
 
 .battery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 8px 20px; }
 .panel.stale .battery-grid { opacity: 0.45; }
+.battery-empty { font-size: 13px; color: var(--muted); }
 
 .battery {
   --tone: var(--accent);

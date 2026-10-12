@@ -492,7 +492,11 @@ function renderBatteries(panels) {
       h('header', { class: 'panel-head' },
         h('h2', {}, 'Batteries'),
         h('span', { class: 'tag' }, panel.instance),
-        h('span', { class: 'label panel-note' }, flagged ? `${flagged} of ${panel.items.length} to check` : `${panel.items.length} · all good`)),
+        h('span', { class: 'label panel-note' },
+          flagged ? `${flagged} of ${panel.items.length} to check` : panel.items.length ? `${panel.items.length} · all good` : '0 sensors')),
+      // A house can have the panel before it has the sensors.
+      panel.items.length === 0 ? h('p', { class: 'battery-empty' },
+        `No battery sensors in ${panel.instance} yet. They will show up here once they are added.`) :
       h('ul', { class: 'battery-grid' }, ...panel.items.map((item) => {
         const value = item.status === 'offline' ? 'Offline'
           : item.level != null ? `${Math.round(item.level)} %`
