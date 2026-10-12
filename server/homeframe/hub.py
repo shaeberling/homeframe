@@ -9,7 +9,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from .config import Config, Instance
-from .dashboard import InstanceState, activity_item, build_dashboard, resolve_panels
+from .dashboard import InstanceState, activity_item, activity_state, build_dashboard, resolve_panels
 from .demo import DemoClient
 from .ha import HAClient, Series, describe_error
 from .services import entities_of, fetch_agenda, fetch_todos
@@ -195,8 +195,12 @@ class Hub:
         except Exception as failure:
             changes, error = [], describe_error(failure, instance)
 
+        # Covers move through "opening" and "closing"; as events those are one "open".
+        states = [(when, activity_state(state)) for when, state in changes]
+        changes = [change for index, change in enumerate(states) if index == 0 or states[index - 1][1] != change[1]]
+
         # The current state is known even when its change is older than the recorded history.
-        raw = (live.states.get(entity_id) or {}).get("state")
+        raw = activity_state((live.states.get(entity_id) or {}).get("state"))
         if raw and item["since"] and (not changes or changes[-1][1] != raw):
             changes.append((item["since"], raw))
 

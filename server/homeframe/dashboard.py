@@ -318,8 +318,16 @@ def _sensor_attention(instance: Instance, view: dict, raise_attention) -> None:
         )
 
 
-DOOR_CLASSES = {"door", "opening", "window", "garage_door"}
+# "garage" and "gate" are what a cover entity (a garage door opener) calls itself.
+DOOR_CLASSES = {"door", "opening", "window", "garage_door", "garage", "gate"}
 MOTION_CLASSES = {"motion", "occupancy", "presence", "moving"}
+# A cover reports where it is rather than on/off; anything but closed counts as open.
+COVER_STATES = {"open": "on", "opening": "on", "closing": "on", "closed": "off"}
+
+
+def activity_state(raw: str | None) -> str | None:
+    """The state of a door or motion sensor as on/off, whatever kind of entity reports it."""
+    return COVER_STATES.get(raw, raw)
 
 
 def activity_item(instance: Instance, live: InstanceState, entity_id: str) -> dict | None:
@@ -343,7 +351,7 @@ def _activity_panel(instance: Instance, live: InstanceState) -> dict:
             "entity": entry.entity,
             "name": entry.name or _display_name(state, entry.entity),
             "kind": "door" if device_class in DOOR_CLASSES else "motion" if device_class in MOTION_CLASSES else "other",
-            "active": raw == "on" if status == "ok" else None,
+            "active": activity_state(raw) == "on" if status == "ok" else None,
             "status": status,
             "since": parse_time(state.get("last_changed")) if state else None,
         })
