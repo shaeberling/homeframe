@@ -789,12 +789,14 @@ function drawDetail() {
 
 const ACTIVITY_LABEL = { door: ['Open', 'Closed'], motion: ['Motion', 'Clear'], other: ['On', 'Off'] };
 
-function activityTime(item, now) {
+// How long ago the last change was, as an upper bound that reads at a glance:
+// "< 12 minutes", "< 5 hours", and from a day on "< 3 days".
+function activityAge(item, now) {
   if (item.since == null) return '';
-  const span = now - item.since;
-  if (item.status === 'offline') return `Offline ${duration(span)}`;
-  if (item.kind === 'motion') return item.active ? `Motion ${duration(span)}` : `Last motion ${ago(span)}`;
-  return `Changed ${ago(span)}`;
+  const span = Math.max(0, now - item.since);
+  const [size, unit] = span < 3600 ? [60, 'minute'] : span < 86400 ? [3600, 'hour'] : [86400, 'day'];
+  const count = Math.floor(span / size) + 1;
+  return `< ${count} ${unit}${count === 1 ? '' : 's'}`;
 }
 
 function renderActivity(panels) {
@@ -808,7 +810,8 @@ function renderActivity(panels) {
       h('h2', {}, 'Doors & motion'),
       h('span', { class: 'tag' }, panel.instance),
       h('span', { class: 'label panel-note' }, `${panel.items.length} sensors`)),
-    h('ul', { class: 'activity-grid' }, ...panel.items.map((item) => {
+    // Most recent change first, so the latest event is always on the left.
+    h('ul', { class: 'activity-grid' }, ...[...panel.items].sort((a, b) => (b.since ?? 0) - (a.since ?? 0)).map((item) => {
       const [on, off] = ACTIVITY_LABEL[item.kind] || ACTIVITY_LABEL.other;
       const label = item.status === 'offline' ? 'Offline' : item.active == null ? '—' : item.active ? on : off;
       const changed = item.since ? new Date(item.since * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
@@ -820,7 +823,7 @@ function renderActivity(panels) {
       },
         h('span', { class: 'activity-name' }, item.name),
         h('span', { class: 'activity-state' }, label),
-        h('span', { class: 'activity-time' }, activityTime(item, now))));
+        h('span', { class: 'activity-time' }, activityAge(item, now))));
     })))));
 }
 
