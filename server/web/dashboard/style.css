@@ -434,9 +434,8 @@ button { font: inherit; color: inherit; }
 
 /* ── Out-of-range values ────────────────────────────────── */
 
-/* A lit frame behind anything orange or red, blinking: slowly for a warning,
-   twice as fast for critical or offline. Only its opacity is animated, which
-   stays cheap on a small machine. */
+/* A lit frame behind anything orange or red. It stays lit rather than
+   blinking: the colour says enough, and a blinking wall display distracts. */
 .card, .battery, .activity-item { position: relative; isolation: isolate; }
 .card:is([data-status="low"], [data-status="critical"], [data-status="offline"])::after,
 .battery:is([data-status="low"], [data-status="offline"])::after,
@@ -450,11 +449,9 @@ button { font: inherit; color: inherit; }
   background: color-mix(in srgb, var(--tone) 24%, transparent);
   box-shadow: 0 0 16px color-mix(in srgb, var(--tone) 60%, transparent);
   pointer-events: none;
-  animation: alarm var(--alarm-period, 1s) linear infinite;
 }
 .battery[data-status]::after { inset: -5px -8px; }
 .activity-item[data-state]::after { inset: -5px -8px -5px -2px; }
-.card[data-status="low"], .battery[data-status="low"] { --alarm-period: 2s; }
 
 /* ── History chart ──────────────────────────────────────── */
 
@@ -666,7 +663,6 @@ kbd {
 
 @keyframes blink { 50% { opacity: 0.45; } }
 @keyframes pulse { 0%, 100% { opacity: 0.1; } 50% { opacity: 0.75; } }
-@keyframes alarm { 0%, 42% { opacity: 1; } 50%, 92% { opacity: 0; } }
 @keyframes flash {
   0% { box-shadow: 0 0 0 2px var(--tone), 0 0 30px var(--tone); }
   100% { box-shadow: 0 0 0 2px transparent, 0 0 0 transparent; }

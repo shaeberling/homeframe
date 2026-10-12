@@ -1035,14 +1035,6 @@ function render() {
   renderBatteries(dash.batteries || []);
   renderAttention(dash.attention);
   if ($('#detail').open) renderDetail();
-  syncAlarms();
-}
-
-// Out-of-range values turn up at different moments; one shared clock makes them blink together.
-function syncAlarms() {
-  for (const animation of document.getAnimations()) {
-    if (animation.animationName === 'alarm' && animation.startTime !== 0) animation.startTime = 0;
-  }
 }
 
 async function refreshDashboard() {
