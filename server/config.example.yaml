@@ -18,7 +18,9 @@ instances:
     # weather: weather.forecast_home       # forecast source; picked automatically
     #                                      # if left out, `false` hides the forecast
     # activity:                            # doors and motion sensors, listed with
-    #   - binary_sensor.front_door         # their state and when it last changed
+    #   - binary_sensor.front_door         # their state and when it last changed;
+    #                                      # `activity: []` shows the panel empty,
+    #                                      # for sensors that are still to come
     #   - entity: binary_sensor.hall_motion
     #     name: Hallway
     # batteries:                           # watch and list only these battery sensors

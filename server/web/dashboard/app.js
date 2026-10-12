@@ -810,6 +810,9 @@ function renderActivity(panels) {
       h('h2', {}, 'Doors & motion'),
       h('span', { class: 'tag' }, panel.instance),
       h('span', { class: 'label panel-note' }, `${panel.items.length} sensors`)),
+    // A house can have the panel before it has the sensors.
+    panel.items.length === 0 ? h('p', { class: 'activity-empty' },
+      `No door or motion sensors in ${panel.instance} yet. They will show up here once they are added.`) :
     // Most recent change first, so the latest event is always on the left.
     h('ul', { class: 'activity-grid' }, ...[...panel.items].sort((a, b) => (b.since ?? 0) - (a.since ?? 0)).map((item) => {
       const [on, off] = ACTIVITY_LABEL[item.kind] || ACTIVITY_LABEL.other;

@@ -30,8 +30,9 @@ class Instance:
     weather: str | bool | None = None
     # Battery sensors (ids or globs) to watch and list; None watches every battery sensor.
     batteries: list[str] | None = None
-    # Door and motion sensors listed with their state and last change.
-    activity: list[ActivityItem] = field(default_factory=list)
+    # Door and motion sensors listed with their state and last change. None
+    # leaves the panel out; an empty list shows it, waiting for its sensors.
+    activity: list[ActivityItem] | None = None
 
 
 @dataclass
@@ -194,7 +195,10 @@ def _instance(raw, n: int) -> Instance:
         verify_ssl=bool(raw.get("verify_ssl", True)),
         weather=weather,
         batteries=[str(b) for b in _list(raw, "batteries", where)] if raw.get("batteries") is not None else None,
-        activity=[_activity(a, f"{where}.activity[{m}]") for m, a in enumerate(_list(raw, "activity", where), 1)],
+        activity=(
+            [_activity(a, f"{where}.activity[{m}]") for m, a in enumerate(_list(raw, "activity", where), 1)]
+            if "activity" in raw else None
+        ),
     )
 
 

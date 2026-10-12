@@ -127,7 +127,7 @@ def build_dashboard(config: Config, live: dict[str, InstanceState]) -> dict:
 
     activity = []
     for instance in config.instances:
-        if not instance.activity:
+        if instance.activity is None:
             continue
         panel = _activity_panel(instance, live[instance.id])
         activity.append(panel)
@@ -329,7 +329,7 @@ def activity_item(instance: Instance, live: InstanceState, entity_id: str) -> di
 def _activity_panel(instance: Instance, live: InstanceState) -> dict:
     """Door and motion sensors with their state and the time it last changed."""
     items = []
-    for entry in instance.activity:
+    for entry in instance.activity or []:
         state = live.states.get(entry.entity)
         raw = state.get("state") if state else None
         device_class = _attrs(state).get("device_class")
