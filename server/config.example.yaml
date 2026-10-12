@@ -26,6 +26,8 @@ instances:
     # batteries:                           # watch and list only these battery sensors
     #   - sensor.front_door_battery        # (ids or globs); without this key every
     #   - sensor.*_thermostat_battery      # battery sensor of the instance is watched;
+    #                                      # `batteries: all` watches every one and
+    #                                      # lists them too, new ones included;
     #                                      # `batteries: []` shows the panel empty
     #                                      # and watches none
 

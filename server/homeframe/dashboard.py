@@ -198,7 +198,7 @@ def build_dashboard(config: Config, live: dict[str, InstanceState]) -> dict:
         "activity": activity,
         "batteries": [
             _battery_panel(instance, live[instance.id], config.attention, label)
-            for instance in config.instances if instance.batteries is not None
+            for instance in config.instances if instance.batteries is not None or instance.all_batteries
         ],
         "attention": attention,
     }
@@ -367,8 +367,10 @@ def _is_watched_battery(instance: Instance, entity_id: str, state: dict) -> bool
 
 
 def _battery_panel(instance: Instance, live: InstanceState, attention: Attention, label) -> dict:
-    """The battery sensors an instance lists explicitly, weakest first."""
+    """The battery sensors an instance lists (or all it has, if it asks for that), weakest first."""
     entities: list[str] = []
+    if instance.batteries is None:
+        entities = sorted(e for e, state in live.states.items() if _is_watched_battery(instance, e, state))
     for pattern in instance.batteries or []:
         matches = sorted(e for e in live.states if fnmatchcase(e, pattern)) if _is_glob(pattern) else [pattern]
         entities.extend(e for e in matches if e not in entities)
@@ -394,8 +396,9 @@ def _battery_panel(instance: Instance, live: InstanceState, attention: Attention
             "level": level,
             "status": status,
         })
-    order = {"offline": 0, "nodata": 0}
-    items.sort(key=lambda i: (order.get(i["status"], 1), i["level"] if i["level"] is not None else -1, i["name"].lower()))
+    # Low comes before fine even without a percentage: some sensors only report "low".
+    order = {"offline": 0, "nodata": 0, "low": 1}
+    items.sort(key=lambda i: (order.get(i["status"], 2), i["level"] if i["level"] is not None else -1, i["name"].lower()))
     return {
         "key": f"batteries-{instance.id}",
         "instance": instance.name,
