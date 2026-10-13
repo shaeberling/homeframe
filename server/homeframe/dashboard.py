@@ -378,7 +378,7 @@ def _is_watched_battery(instance: Instance, entity_id: str, state: dict) -> bool
 
 
 def _battery_panel(instance: Instance, live: InstanceState, attention: Attention, label) -> dict:
-    """The battery sensors an instance lists (or all it has, if it asks for that), weakest first."""
+    """The battery sensors an instance lists (or all it has, if it asks for that), emptiest first."""
     entities: list[str] = []
     if instance.batteries is None:
         entities = sorted(e for e, state in live.states.items() if _is_watched_battery(instance, e, state))
@@ -407,9 +407,17 @@ def _battery_panel(instance: Instance, live: InstanceState, attention: Attention
             "level": level,
             "status": status,
         })
-    # Low comes before fine even without a percentage: some sensors only report "low".
+    # Emptiest on top, fullest at the bottom. Some sensors only report "low" or
+    # "ok": a bare "low" counts as empty, a bare "ok" as full.
     order = {"offline": 0, "nodata": 0, "low": 1}
-    items.sort(key=lambda i: (order.get(i["status"], 2), i["level"] if i["level"] is not None else -1, i["name"].lower()))
+
+    def emptiness(item: dict) -> tuple:
+        level = item["level"]
+        if level is None:
+            level = 101 if item["status"] == "ok" else -1
+        return order.get(item["status"], 2), level, item["name"].lower()
+
+    items.sort(key=emptiness)
     return {
         "key": f"batteries-{instance.id}",
         "instance": instance.name,
