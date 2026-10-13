@@ -301,15 +301,14 @@ button { font: inherit; color: inherit; }
 .card[data-status="offline"] { --tone: var(--crit); --tone-dim: var(--idle-dim); --status: var(--crit); }
 .card[data-status="nodata"] { --tone: var(--muted); --tone-dim: var(--idle-dim); --status: var(--muted); }
 
-.card-head { display: flex; align-items: baseline; gap: 8px; }
-.card-status { flex: none; font: 600 9px/1.2 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--status); }
-.card:is([data-status="low"], [data-status="critical"], [data-status="offline"]) .card-status {
-  margin: -2px 0;
-  padding: 2px 5px;
-  border-radius: 2px;
-  background: var(--status);
-  color: var(--bg);
-}
+.card-head { display: flex; align-items: center; gap: 8px; }
+/* The state as a sign rather than a word: a dot, or an icon when something is up. */
+.card-status { flex: none; display: grid; place-items: center; width: 14px; height: 14px; margin: -2px 0; color: var(--status); font: 600 9px/1.2 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; }
+.card-status svg { display: block; width: 14px; height: 14px; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--status) 60%, transparent)); }
+.card-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--status); box-shadow: 0 0 6px var(--status); }
+.card[data-status="nodata"] .card-dot { background: none; box-shadow: none; border: 1.5px solid var(--status); }
+/* In the detail view there is room for the word. */
+.detail-head .card-status { display: inline; width: auto; height: auto; margin: 0; }
 
 .card-name {
   flex: 1;

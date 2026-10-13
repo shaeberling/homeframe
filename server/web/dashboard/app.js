@@ -360,7 +360,7 @@ function buildCard(sensor) {
   return h('button', { class: 'card', type: 'button', 'data-key': sensor.key, onclick: () => openDetail(sensor.key) },
     h('span', { class: 'card-head' },
       h('span', { class: 'card-name' }),
-      h('span', { class: 'card-status' })),
+      h('span', { class: 'card-status', role: 'img' })),
     s('svg', { class: 'gauge', viewBox: '0 0 200 158', role: 'img' },
       ticks,
       s('path', { class: 'g-track', d: gaugeArc() }),
@@ -385,7 +385,16 @@ function updateCard(card, sensor) {
   $('.gauge', card).setAttribute('aria-label', `${sensor.name}: ${withUnit(live ? sensor.value : null, sensor.unit)}, ${STATUS_LABEL[sensor.status]}`);
   $('.g-value', card).textContent = live ? num(sensor.value) : '—';
   $('.g-unit', card).textContent = sensor.unit;
-  $('.card-status', card).textContent = STATUS_LABEL[sensor.status];
+  // A dot when all is well, otherwise the icon the attention list uses for it;
+  // the word is still there for a pointer or a screen reader.
+  const status = $('.card-status', card);
+  if (status.dataset.shown !== sensor.status) {
+    status.dataset.shown = sensor.status;
+    status.title = STATUS_LABEL[sensor.status];
+    status.setAttribute('aria-label', STATUS_LABEL[sensor.status]);
+    const kind = { offline: 'offline', low: 'temperature', critical: 'temperature' }[sensor.status];
+    status.replaceChildren(kind ? icon(kind) : h('i', { class: 'card-dot' }));
+  }
 
   const extras = [];
   if (sensor.humidity) {
