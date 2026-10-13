@@ -12,6 +12,7 @@ from .config import Config, Instance
 from .dashboard import InstanceState, activity_item, activity_state, build_dashboard, resolve_panels
 from .demo import DemoClient
 from .ha import HAClient, Series, describe_error, parse_time
+from .lights import light_entities
 from .people import watched as watched_people
 from .services import entities_of, fetch_agenda, fetch_todos
 from .weather import days_from_daily, days_from_hourly, supports_daily, weather_entity
@@ -92,6 +93,7 @@ class Hub:
             else:
                 await self._refresh_time_zone(instance)
                 await self._refresh_devices(instance)
+                await self._refresh_rooms(instance)
                 await self._refresh_forecast(instance)
                 await self._refresh_agenda(instance)
                 await self._refresh_todos(instance)
@@ -130,11 +132,12 @@ class Hub:
             live.states.pop(entity_id, None)
         else:
             live.states[entity_id] = state
-        # Doors, motion and where people are is what one watches happen;
-        # everything else is fine with the browser's own refresh.
+        # Doors, motion, lights and where people are is what one watches
+        # happen; everything else is fine with the browser's own refresh.
         watched = (
             any(item.entity == entity_id for item in instance.activity or [])
             or entity_id in watched_people(self.config, instance.id)
+            or entity_id in light_entities(instance, {entity_id: state or {}})
         )
         if watched and (previous or {}).get("state") != (state or {}).get("state"):
             self._notify()
@@ -222,6 +225,18 @@ class Hub:
         except Exception as error:  # without it entities are simply not grouped by device
             log.warning("%s: reading the device list failed: %s", instance.name, describe_error(error, instance))
             live.devices_at = time.time() - REGISTRY_TTL + REGISTRY_RETRY
+
+    async def _refresh_rooms(self, instance: Instance) -> None:
+        """Rooms and floors, which only the lights are sorted by."""
+        live = self._live[instance.id]
+        if instance.lights is None or time.time() - live.rooms_at < REGISTRY_TTL:
+            return
+        try:
+            live.rooms = await self._clients[instance.id].entity_rooms()
+            live.rooms_at = time.time()
+        except Exception as error:  # without it the lights are listed without rooms
+            log.warning("%s: reading rooms and floors failed: %s", instance.name, describe_error(error, instance))
+            live.rooms_at = time.time() - REGISTRY_TTL + REGISTRY_RETRY
 
     async def _refresh_forecast(self, instance: Instance) -> None:
         live = self._live[instance.id]

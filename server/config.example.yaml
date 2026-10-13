@@ -23,6 +23,12 @@ instances:
     #                                      # for sensors that are still to come
     #   - entity: binary_sensor.hall_motion
     #     name: Hallway
+    # lights: all                          # a Lights panel with every light.* entity,
+    # lights:                              # by floor and room (Home Assistant's areas
+    #   exclude:                           # and floors); or the same, give or take:
+    #     - light.*_indicator              # ids or globs to leave out
+    #   include:                           # other entities that are lamps, such as
+    #     - switch.floor_lamp              # the switch one is plugged into
     # batteries:                           # watch and list only these battery sensors
     #   - sensor.front_door_battery        # (ids or globs); without this key every
     #   - sensor.*_thermostat_battery      # battery sensor of the instance is watched;

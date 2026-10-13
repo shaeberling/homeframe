@@ -20,6 +20,16 @@ class ActivityItem:
 
 
 @dataclass
+class Lights:
+    """Which lights of an instance are shown: every light.* entity, give or take."""
+
+    # Entity ids or globs of lights to leave out.
+    exclude: list[str] = field(default_factory=list)
+    # Other entities that are lamps, typically the switch.* a lamp is plugged into.
+    include: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Instance:
     id: str
     name: str
@@ -35,6 +45,8 @@ class Instance:
     # Door and motion sensors listed with their state and last change. None
     # leaves the panel out; an empty list shows it, waiting for its sensors.
     activity: list[ActivityItem] | None = None
+    # None leaves the lights panel out.
+    lights: Lights | None = None
 
 
 @dataclass
@@ -231,6 +243,20 @@ def _instance(raw, n: int) -> Instance:
             [_activity(a, f"{where}.activity[{m}]") for m, a in enumerate(_list(raw, "activity", where), 1)]
             if "activity" in raw else None
         ),
+        lights=_lights(raw.get("lights"), f"{where}.lights"),
+    )
+
+
+def _lights(raw, where: str) -> Lights | None:
+    if raw is None or raw is False:
+        return None
+    if raw is True or raw == "all":
+        return Lights()
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{where}: expected `all`, or a mapping with exclude and include")
+    return Lights(
+        exclude=[str(e) for e in _list(raw, "exclude", where)],
+        include=[str(e) for e in _list(raw, "include", where)],
     )
 
 

@@ -9,6 +9,7 @@ from fnmatch import fnmatchcase
 
 from .config import Attention, Config, Instance, Panel, Sensor
 from .ha import parse_time, to_float
+from .lights import lights_view
 from .people import people_view
 from .weather import weather_view
 
@@ -39,6 +40,9 @@ class InstanceState:
     # entity id → device id, so entities of one physical device can be treated as one
     devices: dict[str, str] = field(default_factory=dict)
     devices_at: float = 0
+    # entity id → {"room", "floor", "level"}, from Home Assistant's areas and floors
+    rooms: dict[str, dict] = field(default_factory=dict)
+    rooms_at: float = 0
 
     @property
     def status(self) -> str:
@@ -201,6 +205,10 @@ def build_dashboard(config: Config, live: dict[str, InstanceState]) -> dict:
         "people": people_view(config, live),
         "panels": panels,
         "activity": activity,
+        "lights": [
+            lights_view(instance, live[instance.id])
+            for instance in config.instances if instance.lights is not None
+        ],
         "batteries": [
             _battery_panel(instance, live[instance.id], config.attention, label)
             for instance in config.instances if instance.batteries is not None or instance.all_batteries

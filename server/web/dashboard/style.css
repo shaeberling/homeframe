@@ -250,6 +250,11 @@ button { font: inherit; color: inherit; }
    its row with whatever follows. */
 .board { display: flex; flex-wrap: wrap; gap: 12px; }
 .board > .panels { display: contents; }
+/* The temperature panels, with the lights of the houses to their right. */
+.split { flex: 1 1 100%; min-width: 0; display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; align-items: start; }
+.split:has(#lights:empty) { grid-template-columns: minmax(0, 1fr); }
+.split > .panels { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+@media (max-width: 1040px) { .split { grid-template-columns: minmax(0, 1fr); } }
 .board .placeholder { flex: 1 1 100%; }
 
 .placeholder { padding: 40px 0; text-align: center; color: var(--muted); font-family: var(--mono); letter-spacing: 0.1em; text-transform: uppercase; }
@@ -267,8 +272,8 @@ button { font: inherit; color: inherit; }
 
 .gauges {
   display: grid;
-  /* --columns caps the cards per row; 138px keeps them usable on narrow screens. */
-  grid-template-columns: repeat(auto-fit, minmax(max(138px, (100% - (var(--columns, 99) - 1) * 8px) / var(--columns, 99)), 1fr));
+  /* --columns caps the cards per row; 130px keeps them usable on narrow screens. */
+  grid-template-columns: repeat(auto-fit, minmax(max(130px, (100% - (var(--columns, 99) - 1) * 8px) / var(--columns, 99)), 1fr));
   gap: 8px;
 }
 
@@ -484,6 +489,38 @@ button { font: inherit; color: inherit; }
 .activity-name { font-size: 13px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .activity-state { font: 600 11px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--tone); }
 .activity-time { grid-column: 1 / -1; font: 600 17px/1 var(--mono); color: var(--ink); white-space: nowrap; }
+
+/* ── Lights ─────────────────────────────────────────────── */
+
+/* A box per light, in room order, under its floor. */
+.panel.stale .light-floors { opacity: 0.45; }
+.light-floors { display: grid; gap: 7px; }
+.light-floor-name { margin-bottom: 4px; font: 600 10px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-2); }
+.light-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 5px; }
+.light {
+  --tone: var(--line-strong);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 6px; align-items: baseline;
+  padding: 5px 7px 5px 8px;
+  border: 1px solid var(--line); border-left: 2px solid var(--tone); border-radius: 0 3px 3px 0;
+  background: rgba(8, 13, 20, 0.6);
+}
+/* A light that is on takes the colour it is shining (--lit, set by the
+   script), or a warm white when it cannot say. Text in that colour is
+   lightened, or a deep blue would be unreadable on the dark panel. */
+.light[data-status="on"] {
+  --tone: var(--lit, #ffd6a0);
+  --tone-text: color-mix(in srgb, var(--tone) 62%, #fff);
+  border-color: color-mix(in srgb, var(--tone) 40%, transparent); border-left-color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 11%, transparent);
+}
+.light[data-status="offline"] { --tone: var(--crit); }
+.light-name { grid-column: 1 / -1; font-size: 12.5px; line-height: 1.15; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.light[data-status="on"] .light-name { color: var(--ink); }
+.light-state { display: flex; align-items: baseline; gap: 6px; font: 600 10px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.light[data-status="on"] .light-state { color: var(--tone-text); text-shadow: 0 0 8px color-mix(in srgb, var(--tone) 70%, transparent); }
+.light[data-status="offline"] .light-state { color: var(--crit); }
+.light-room { font: 500 9px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.light-age { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--ink-2); text-shadow: none; }
 
 /* ── Out-of-range values ────────────────────────────────── */
 

@@ -127,6 +127,17 @@ class HAClient:
             async with self._socket() as socket:
                 return await self._ask(socket, command)
 
+    async def _commands(self, commands: list[dict]) -> list:
+        """Run several commands over one connection; a command that fails yields None."""
+        async with asyncio.timeout(60):
+            async with self._socket() as socket:
+                results = [await self._ask(socket, commands[0])]
+                for number, command in enumerate(commands[1:], 2):
+                    await socket.send(json.dumps({"id": number, **command}))
+                    answer = json.loads(await socket.recv())
+                    results.append(answer.get("result") if answer.get("success") else None)
+                return results
+
     async def listen(self, on_change, on_ready) -> None:
         """Stay connected and report every state change the moment it happens.
 
@@ -148,6 +159,30 @@ class HAClient:
         """Which device each entity belongs to (entity id → device id)."""
         entries = await self._command({"type": "config/entity_registry/list"}) or []
         return {e["entity_id"]: e["device_id"] for e in entries if e.get("device_id")}
+
+    async def entity_rooms(self) -> dict[str, dict]:
+        """Where each entity is: {"room", "floor", "level"}, as far as Home Assistant has been told.
+
+        An entity is in the area set on it, or else in its device's. Floors
+        are optional in Home Assistant (and missing altogether before 2024.4).
+        """
+        entities, devices, areas, floors = await self._commands([
+            {"type": "config/entity_registry/list"},
+            {"type": "config/device_registry/list"},
+            {"type": "config/area_registry/list"},
+            {"type": "config/floor_registry/list"},
+        ])
+        device_area = {d["id"]: d.get("area_id") for d in devices or []}
+        floor_of = {f["floor_id"]: f for f in floors or []}
+        area_of = {a["area_id"]: a for a in areas or []}
+        rooms = {}
+        for entity in entities or []:
+            area = area_of.get(entity.get("area_id") or device_area.get(entity.get("device_id")))
+            if not area:
+                continue
+            floor = floor_of.get(area.get("floor_id")) or {}
+            rooms[entity["entity_id"]] = {"room": area["name"], "floor": floor.get("name"), "level": floor.get("level")}
+        return rooms
 
     async def statistics(self, entity_ids: list[str], start: datetime, end: datetime) -> dict[str, Series]:
         """Hourly means from the long-term statistics.

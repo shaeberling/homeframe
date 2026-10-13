@@ -59,6 +59,7 @@ const state = {
   instances: null,
   weather: null,
   batteries: null,
+  lights: null,
   people: null,
   stream: false,
   activity: null,
@@ -907,6 +908,51 @@ function renderActivity(panels) {
   }
 }
 
+// ── Lights ───────────────────────────────────────────────────
+
+// "< 12 min", "< 5 h", "< 3 d": how long ago a light was last switched, as an upper bound.
+function lightAge(light, now) {
+  if (light.since == null) return '';
+  const span = Math.max(0, now - light.since);
+  const [size, unit] = span < 3600 ? [60, 'min'] : span < 86400 ? [3600, 'h'] : [86400, 'd'];
+  return `< ${Math.floor(span / size) + 1} ${unit}`;
+}
+
+function renderLights(panels) {
+  const now = Date.now() / 1000;
+  // The ages are relative, so they change when the data doesn't.
+  const signature = JSON.stringify(panels) + Math.floor(now / 30);
+  if (signature === state.lights) return;
+  state.lights = signature;
+
+  // One box per light: its name, then its room, its state and since when.
+  const lightNode = (room) => (light) => {
+    const changed = light.since ? new Date(light.since * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
+    const value = light.status === 'offline' ? 'Offline' : light.status === 'off' ? 'Off'
+      : light.brightness != null && light.brightness < 100 ? `${light.brightness} %` : 'On';
+    return h('li', {
+      class: 'light', 'data-status': light.status,
+      // Lit in the colour the light itself reports; the stylesheet has a warm white for the rest.
+      style: light.color ? `--lit: rgb(${light.color.join(' ')})` : null,
+      title: [light.full_name, light.entity, changed && `last change ${changed}`].filter(Boolean).join(' · '),
+    },
+      h('span', { class: 'light-name' }, light.name),
+      h('span', { class: 'light-room' }, room.name || ''),
+      h('span', { class: 'light-state' }, value, h('span', { class: 'light-age' }, lightAge(light, now))));
+  };
+
+  const floorNode = (floor) => h('div', { class: 'light-floor' },
+    floor.name ? h('h3', { class: 'light-floor-name' }, floor.name) : null,
+    h('ul', { class: 'light-grid' }, ...floor.rooms.flatMap((room) => room.lights.map(lightNode(room)))));
+
+  $('#lights').replaceChildren(...panels.map((panel) => h('section', { class: `panel frame lights${panel.stale ? ' stale' : ''}` },
+    h('header', { class: 'panel-head' },
+      h('h2', {}, 'Lights'),
+      h('span', { class: 'tag' }, panel.instance),
+      h('span', { class: 'label panel-note' }, panel.total ? `${panel.on} of ${panel.total} on` : 'none found')),
+    h('div', { class: 'light-floors' }, ...panel.floors.map(floorNode)))));
+}
+
 // What a change to this state is called, per kind of sensor.
 const EVENT_LABEL = {
   door: { on: 'Opened', off: 'Closed' },
@@ -1116,6 +1162,7 @@ function render() {
     refreshHistory();
   }
   renderActivity(dash.activity || []);
+  renderLights(dash.lights || []);
   renderBatteries(dash.batteries || []);
   renderAttention(dash.attention);
   fitSide();

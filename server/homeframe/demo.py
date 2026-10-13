@@ -8,7 +8,7 @@ import zlib
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from .config import ActivityItem, Config, Instance, Panel, Person, Place, Sensor
+from .config import ActivityItem, Config, Instance, Lights, Panel, Person, Place, Sensor
 from .ha import Series
 
 HOUR = 3600.0
@@ -84,6 +84,26 @@ EVENTS = [
     ("⭐ Cabin weekend", 5, None),
 ]
 
+# (entity, friendly name, room, floor, floor level, state, brightness of 255 or None)
+LIGHTS = {
+    "home": [
+        ("light.kitchen_ceiling", "Kitchen Ceiling", "Kitchen", "Ground floor", 0, "on", None),
+        ("light.kitchen_counter", "Kitchen Counter", "Kitchen", "Ground floor", 0, "on", 140),
+        ("light.living_room_ceiling", "Living room Ceiling", "Living room", "Ground floor", 0, "off", None),
+        ("light.living_room_floor_lamp", "Living room Floor lamp", "Living room", "Ground floor", 0, "on", 90),
+        ("light.hall", "Hall", "Hall", "Ground floor", 0, "off", None),
+        ("light.bedroom_ceiling", "Bedroom Ceiling", "Bedroom", "Upper floor", 1, "off", None),
+        ("light.bedroom_reading", "Bedroom Reading lamp", "Bedroom", "Upper floor", 1, "on", 60),
+        ("light.nursery_night_light", "Nursery Night light", "Nursery", "Upper floor", 1, "unavailable", None),
+        ("light.bathroom_mirror", "Bathroom Mirror", "Bathroom", "Upper floor", 1, "off", None),
+        ("light.porch", "Porch", None, None, None, "on", None),
+    ],
+    "cabin": [
+        ("switch.cabin_floor_lamp", "Floor lamp", "Main room", None, None, "off", None),
+        ("switch.cabin_porch_lamp", "Porch lamp", None, None, None, "on", None),
+    ],
+}
+
 TODOS = ["Bins out tonight", "Order more coffee", "Book the chimney sweep", "Return library books"]
 
 FAILED_FOR = 9 * HOUR
@@ -100,11 +120,13 @@ def demo_config() -> Config:
             Instance(
                 id="home", name="Home", url="demo://home", token="demo",
                 activity=[ActivityItem(entity) for entity, *_ in ACTIVITY["home"]],
+                lights=Lights(),
             ),
             Instance(
                 id="cabin", name="Cabin", url="demo://cabin", token="demo",
                 batteries=[entity for entity, *_ in BATTERIES["cabin"]],
                 activity=[ActivityItem(entity) for entity, *_ in ACTIVITY["cabin"]],
+                lights=Lights(include=["switch.cabin_*_lamp"]),
             ),
         ],
         panels=[
@@ -202,6 +224,13 @@ class DemoClient:
                 "last_changed": changed,
                 "last_updated": changed,
             })
+        for entity, name, _room, _floor, _level, value, brightness in LIGHTS[self.instance.id]:
+            changed = _iso(self._started)
+            states.append({
+                "entity_id": entity, "state": value,
+                "attributes": {"friendly_name": name, **({"brightness": brightness} if brightness else {})},
+                "last_changed": changed, "last_updated": changed,
+            })
         if self.instance.id == "home":
             states += self._people(now)
             started = _iso(self._started)
@@ -273,6 +302,12 @@ class DemoClient:
         # A sensor's temperature and battery entities belong to one device.
         entities = [e for e, *_ in TEMPERATURES[self.instance.id]] + [e for e, *_ in BATTERIES[self.instance.id]]
         return {e: e.split(".", 1)[1].removesuffix("_temperature").removesuffix("_battery") for e in entities}
+
+    async def entity_rooms(self) -> dict[str, dict]:
+        return {
+            entity: {"room": room, "floor": floor, "level": level}
+            for entity, _name, room, floor, level, *_ in LIGHTS[self.instance.id] if room
+        }
 
     async def statistics(self, entity_ids: list[str], start: datetime, end: datetime) -> dict[str, Series]:
         return await self.history(entity_ids, start, end)

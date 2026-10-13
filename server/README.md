@@ -58,6 +58,10 @@ See `config.example.yaml` for every option. In short:
   entity or `false` to hide it. A `batteries:` list limits battery monitoring
   to those sensors, and an `activity:` list names the door and motion sensors
   to show.
+- `lights` (per instance) — a Lights module beside the temperature gauges: a
+  box per light with its state, colour and when it last switched, by floor and
+  room as Home Assistant has them. Every `light.*` entity is shown, minus an
+  `exclude` list, plus an `include` list for lamps that are really switches.
 - `panels` — which temperature sensors to show, grouped as you like. An
   instance without a panel shows all of its temperature sensors.
 - `attention` — thresholds for what needs a look, plus `watch` / `ignore`
