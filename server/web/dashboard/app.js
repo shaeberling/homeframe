@@ -59,6 +59,7 @@ const state = {
   instances: null,
   weather: null,
   batteries: null,
+  stream: false,
   activity: null,
   detail: null,     // sensor overlay: { key, hours, history }
   receivedAt: Date.now(),  // last answer from the dashboard server (page load until there is one)
@@ -198,9 +199,12 @@ const forSpan = (seconds) => (seconds < 60 ? '' : ` for ${span(seconds)}`);
 
 function renderInstances(instances) {
   const stale = (instance) => (dataAge(instance) >= staleAfter() ? span(dataAge(instance)) : null);
-  const signature = JSON.stringify(instances.map((i) => [i.id, i.name, i.status, i.error, i.entities, stale(i)]));
+  const signature = JSON.stringify([state.stream, ...instances.map((i) => [i.id, i.name, i.status, i.error, i.entities, i.push, stale(i)])]);
   if (signature === state.instances) return;
   state.instances = signature;
+  // Whether changes are pushed over a connection that is up right now, or
+  // only picked up by polling until it is back.
+  const link = (live, title) => h('span', { class: 'chip-link', 'data-live': live ? 'yes' : 'no', title }, live ? 'Live' : 'Polling');
   $('#instances').replaceChildren(...instances.map((instance) => {
     const old = stale(instance);
     const sub = old ? `No update for ${old}`
@@ -208,8 +212,16 @@ function renderInstances(instances) {
     return h('div', { class: 'chip', 'data-status': instance.status, 'data-stale': old ? '' : null, title: instance.error || '' },
       h('span', { class: 'chip-dot' }),
       h('span', { class: 'chip-name' }, instance.name),
-      h('span', { class: 'chip-sub' }, sub));
-  }));
+      h('span', { class: 'chip-sub' }, sub),
+      instance.status === 'online' ? link(instance.push, instance.push
+        ? `${instance.name} pushes changes to the server as they happen`
+        : `The push connection to ${instance.name} is down; the server is polling and reconnecting`) : null);
+  }), h('div', { class: 'chip', 'data-status': state.stream ? 'online' : 'connecting' },
+    h('span', { class: 'chip-dot' }),
+    h('span', { class: 'chip-name' }, 'This screen'),
+    link(state.stream, state.stream
+      ? 'The server pushes door and motion changes to this screen as they happen'
+      : 'The push connection to the server is down; this screen is polling and reconnecting')));
 }
 
 // Updates that stopped arriving are easy to miss, since the last values stay on
@@ -1119,7 +1131,12 @@ await refreshDashboard();
 setInterval(refreshDashboard, POLL_MS);
 // The server says so the moment a door or motion sensor changes; the poll
 // above stays as the fallback. EventSource reconnects on its own.
-new EventSource('/api/stream').addEventListener('change', refreshDashboard);
+const stream = new EventSource('/api/stream');
+stream.addEventListener('change', refreshDashboard);
+// Shown in the top bar, next to the houses' own connections.
+const streamIs = (open) => () => { state.stream = open; if (state.dash) renderInstances(state.dash.instances); };
+stream.addEventListener('open', streamIs(true));
+stream.addEventListener('error', streamIs(false));
 setInterval(refreshHistory, HISTORY_REFRESH_MS);
 
 let resizeFrame = 0;

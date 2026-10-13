@@ -169,6 +169,14 @@ button { font: inherit; color: inherit; }
 .chip-name { font: 600 11px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; }
 .chip-sub { font: 10px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .chip[data-status="error"] .chip-sub { color: var(--crit); }
+/* Whether changes arrive pushed, or only by polling until the connection is back. */
+.chip-link {
+  --link: var(--ok);
+  font: 600 9px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 2px 4px; border: 1px solid color-mix(in srgb, var(--link) 55%, transparent); border-radius: 2px;
+  color: var(--link);
+}
+.chip-link[data-live="no"] { --link: var(--warn); }
 
 /* No update for too long: the chip and the banner below pulse. */
 .chip, .banner { position: relative; isolation: isolate; }
