@@ -361,7 +361,7 @@ def _place(raw, where: str) -> Place:
         raise ConfigError(f"{where} ({raw['name']}): radius must be positive, in metres")
     people = None
     if raw.get("people") is not None:
-        # "sascha" is as good as "person.sascha".
+        # "alex" is as good as "person.alex".
         people = [p if p.startswith("person.") else f"person.{p.lower()}" for p in map(str, _list(raw, "people", where))]
     return Place(
         name=str(raw["name"]), latitude=latitude, longitude=longitude,
