@@ -101,23 +101,48 @@ class HAClient:
         answer = response.json().get("service_response") or {}
         return (answer.get(entity_id) or {}).get("items") or []
 
-    async def _command(self, command: dict):
-        """Run one command over the WebSocket API and return its result."""
+    def _socket(self):
+        """A connection to the WebSocket API, not yet authenticated."""
         url = self.instance.url.replace("http", "ws", 1) + "/api/websocket"
         options = {}
         if url.startswith("wss://") and not self.instance.verify_ssl:
             options["ssl"] = ssl._create_unverified_context()
-        async with asyncio.timeout(45):
-            async with websockets.connect(url, max_size=None, **options) as socket:
-                await socket.recv()  # auth_required
-                await socket.send(json.dumps({"type": "auth", "access_token": self.instance.token}))
-                if json.loads(await socket.recv()).get("type") != "auth_ok":
-                    raise PermissionError("Access denied — check the access token")
-                await socket.send(json.dumps({"id": 1, **command}))
-                answer = json.loads(await socket.recv())
+        return websockets.connect(url, max_size=None, **options)
+
+    async def _ask(self, socket, command: dict):
+        """Authenticate, send one command and return its result."""
+        await socket.recv()  # auth_required
+        await socket.send(json.dumps({"type": "auth", "access_token": self.instance.token}))
+        if json.loads(await socket.recv()).get("type") != "auth_ok":
+            raise PermissionError("Access denied — check the access token")
+        await socket.send(json.dumps({"id": 1, **command}))
+        answer = json.loads(await socket.recv())
         if not answer.get("success"):
             raise RuntimeError((answer.get("error") or {}).get("message") or f"{command['type']} failed")
         return answer.get("result")
+
+    async def _command(self, command: dict):
+        """Run one command over the WebSocket API and return its result."""
+        async with asyncio.timeout(45):
+            async with self._socket() as socket:
+                return await self._ask(socket, command)
+
+    async def listen(self, on_change, on_ready) -> None:
+        """Stay connected and report every state change the moment it happens.
+
+        on_change(entity_id, state) gets the new state, or None for an entity
+        that was removed. Returns when Home Assistant closes the connection
+        and raises when it breaks; either way the caller connects again.
+        """
+        async with self._socket() as socket:
+            async with asyncio.timeout(30):
+                await self._ask(socket, {"type": "subscribe_events", "event_type": "state_changed"})
+            on_ready()
+            async for message in socket:
+                event = json.loads(message)
+                if event.get("type") == "event":
+                    change = event["event"]["data"]
+                    on_change(change["entity_id"], change.get("new_state"))
 
     async def entity_devices(self) -> dict[str, str]:
         """Which device each entity belongs to (entity id → device id)."""

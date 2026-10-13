@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from .config import Config, Instance
 from .dashboard import InstanceState, activity_item, activity_state, build_dashboard, resolve_panels
 from .demo import DemoClient
-from .ha import HAClient, Series, describe_error
+from .ha import HAClient, Series, describe_error, parse_time
 from .services import entities_of, fetch_agenda, fetch_todos
 from .weather import days_from_daily, days_from_hourly, supports_daily, weather_entity
 
@@ -30,6 +30,9 @@ EVENT_LIMIT = 100
 AGENDA_TTL = 5 * 60
 TODO_TTL = 5 * 60
 SERVICE_RETRY = 60
+# Reconnecting the push connection: quickly at first, then backing off.
+PUSH_RETRY = 5
+PUSH_RETRY_MAX = 60
 
 
 class Hub:
@@ -39,6 +42,10 @@ class Hub:
         self._clients = {i.id: client_type(i) for i in config.instances}
         self._live = {i.id: InstanceState() for i in config.instances}
         self._tasks: list[asyncio.Task] = []
+        # One event per open browser stream, set when something worth an
+        # immediate refresh has changed.
+        self._watchers: set[asyncio.Event] = set()
+        self.closing = False
         self._history_cache: dict[int, tuple[float, dict, dict]] = {}
         self._history_locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
         # Last good answer of each service; None until it has answered once, or
@@ -52,8 +59,15 @@ class Hub:
 
     async def start(self) -> None:
         self._tasks = [asyncio.create_task(self._poll(i)) for i in self.config.instances]
+        # Polling stays as the safety net; pushed changes make doors and motion immediate.
+        self._tasks += [
+            asyncio.create_task(self._listen(i)) for i in self.config.instances
+            if hasattr(self._clients[i.id], "listen")
+        ]
 
     async def stop(self) -> None:
+        self.closing = True
+        self._notify()  # lets the open browser streams finish
         for task in self._tasks:
             task.cancel()
         await asyncio.gather(*self._tasks, return_exceptions=True)
@@ -64,7 +78,7 @@ class Hub:
         while True:
             try:
                 states = await self._clients[instance.id].states()
-                live.states = {s["entity_id"]: s for s in states}
+                live.states = merge_states(live.states, states)
                 if live.error or not live.last_ok:
                     log.info("%s: connected, %d entities", instance.name, len(states))
                 live.last_ok = time.time()
@@ -81,6 +95,58 @@ class Hub:
                 await self._refresh_agenda(instance)
                 await self._refresh_todos(instance)
             await asyncio.sleep(self.config.poll_interval)
+
+    async def _listen(self, instance: Instance) -> None:
+        """Keep a push connection to the instance open and apply what it reports."""
+        live = self._live[instance.id]
+        delay = PUSH_RETRY
+
+        def ready() -> None:
+            nonlocal delay
+            delay = PUSH_RETRY
+            live.push = True
+            log.info("%s: live updates connected", instance.name)
+
+        while True:
+            try:
+                await self._clients[instance.id].listen(lambda e, s: self._apply(instance, e, s), ready)
+                reason = "connection closed"
+            except Exception as error:  # keep trying whatever goes wrong
+                reason = describe_error(error, instance)
+            if live.push:
+                log.warning("%s: live updates lost (%s), falling back to polling", instance.name, reason)
+            live.push = False
+            await asyncio.sleep(delay)
+            delay = min(PUSH_RETRY_MAX, delay * 2)
+
+    def _apply(self, instance: Instance, entity_id: str, state: dict | None) -> None:
+        """Take over one pushed state change."""
+        live = self._live[instance.id]
+        if not live.last_ok:
+            return  # nothing to update yet; the first poll brings everything
+        previous = live.states.get(entity_id)
+        if state is None:
+            live.states.pop(entity_id, None)
+        else:
+            live.states[entity_id] = state
+        # Doors and motion are what people watch happen; everything else is
+        # fine with the browser's own refresh.
+        watched = any(item.entity == entity_id for item in instance.activity or [])
+        if watched and (previous or {}).get("state") != (state or {}).get("state"):
+            self._notify()
+
+    def _notify(self) -> None:
+        for watcher in self._watchers:
+            watcher.set()
+
+    def watch(self) -> asyncio.Event:
+        """An event that is set whenever a browser should refresh right away."""
+        watcher = asyncio.Event()
+        self._watchers.add(watcher)
+        return watcher
+
+    def unwatch(self, watcher: asyncio.Event) -> None:
+        self._watchers.discard(watcher)
 
     @property
     def time_zone(self) -> str | None:
@@ -275,6 +341,25 @@ class Hub:
             "series": series,
             "errors": errors,
         }
+
+
+def merge_states(held: dict[str, dict], polled: list[dict]) -> dict[str, dict]:
+    """The polled states, except where a pushed change is newer than the poll.
+
+    A poll takes a moment, and a change pushed meanwhile must not be undone
+    by the older answer.
+    """
+    merged = {}
+    for state in polled:
+        entity_id = state["entity_id"]
+        ours = held.get(entity_id)
+        newer = (
+            ours is not None
+            and ours.get("last_updated") != state.get("last_updated")
+            and (parse_time(ours.get("last_updated")) or 0) > (parse_time(state.get("last_updated")) or 0)
+        )
+        merged[entity_id] = ours if newer else state
+    return merged
 
 
 def downsample(points: Series, start: float, end: float, buckets: int = HISTORY_POINTS) -> list[list]:

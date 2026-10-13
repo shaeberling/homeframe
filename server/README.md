@@ -41,6 +41,7 @@ the frame only ever talk to this server.
 | `/frame.bin` | What the device fetches: 81600 raw bytes, `ETag` + `304`. |
 | `/api/frame` | The JSON the frame renders from. |
 | `/api/dashboard`, `/api/history`, `/api/events` | The JSON behind the web dashboard. |
+| `/api/stream` | Server-sent events: a `change` whenever a door or motion sensor changes. |
 | `/healthz` | Liveness. |
 
 Append `?fresh=1` to `/preview.png` or `/frame.bin` to bypass the render cache.
@@ -109,6 +110,12 @@ The layout is sized to fit one screen: on a 4K display at native resolution it
 is the 1920px layout magnified 2×. Every gauge carries a sparkline of the range
 picked in the top bar (6H / 24H / 7D); the **Charts** button next to it adds
 one large history chart per panel, with a line per sensor.
+
+Doors and motion show up as they happen. The server keeps a WebSocket open to
+each Home Assistant, which pushes every state change, and tells open browsers
+over `/api/stream` (server-sent events) the moment a door or motion sensor
+changes. Polling (`server.poll_interval`, and the browser's own five-second
+refresh) stays as the fallback when either connection drops.
 
 Click a gauge to open that sensor's history as a large chart (24H / 7D / 30D;
 `←` / `→` switch, `Esc` closes). Ranges up to ten days come from Home

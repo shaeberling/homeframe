@@ -33,6 +33,8 @@ class InstanceState:
     forecast: list[dict] = field(default_factory=list)
     forecast_entity: str | None = None
     forecast_at: float = 0
+    # Whether Home Assistant is pushing state changes to us right now.
+    push: bool = False
     # entity id → device id, so entities of one physical device can be treated as one
     devices: dict[str, str] = field(default_factory=dict)
     devices_at: float = 0
@@ -187,6 +189,7 @@ def build_dashboard(config: Config, live: dict[str, InstanceState]) -> dict:
                 # seconds since the instance last answered (or, if it never did, since startup)
                 "age": time.time() - (live[instance.id].last_ok or live[instance.id].created),
                 "entities": len(live[instance.id].states),
+                "push": live[instance.id].push,
             }
             for instance in config.instances
         ],

@@ -1095,6 +1095,9 @@ setInterval(renderFreshness, 1000);
 
 await refreshDashboard();
 setInterval(refreshDashboard, POLL_MS);
+// The server says so the moment a door or motion sensor changes; the poll
+// above stays as the fallback. EventSource reconnects on its own.
+new EventSource('/api/stream').addEventListener('change', refreshDashboard);
 setInterval(refreshHistory, HISTORY_REFRESH_MS);
 
 let resizeFrame = 0;

@@ -18,7 +18,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query, Request, Response
-from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import Config, ConfigError, load_config
@@ -34,6 +34,8 @@ ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 
 log = logging.getLogger("homeframe")
+
+STREAM_KEEPALIVE = 20
 
 
 class NoCacheStatic(StaticFiles):
@@ -84,6 +86,27 @@ def create_app(config: Config, port: int) -> FastAPI:
         if result is None:
             raise HTTPException(404, "Not a door or motion sensor on this dashboard")
         return result
+
+    # Server-sent events: one "change" the moment a door or motion sensor
+    # changes, so the browser refreshes then instead of on its next poll.
+    @app.get("/api/stream")
+    async def stream():
+        async def events():
+            watcher = hub.watch()
+            try:
+                yield "retry: 3000\n\n"
+                while not hub.closing:
+                    try:
+                        await asyncio.wait_for(watcher.wait(), STREAM_KEEPALIVE)
+                    except TimeoutError:
+                        yield ": keep-alive\n\n"  # so proxies and the browser keep the stream open
+                        continue
+                    watcher.clear()
+                    yield "event: change\ndata: {}\n\n"
+            finally:
+                hub.unwatch(watcher)
+
+        return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
 
     # --- e-paper frame ------------------------------------------------------
 
@@ -187,4 +210,5 @@ def main() -> None:
     print("  frame      /frame        (edit web/frame/index.html, reload)")
     print("  preview    /preview.png  (exactly what the panel will show)")
     print(f"  device     /frame.bin    ({FRAME_BYTES} bytes, {config.frame.orientation})")
-    uvicorn.run(create_app(config, port), host=config.host, port=port, log_level="warning")
+    # Browser streams stay open for hours; do not wait for them when stopping.
+    uvicorn.run(create_app(config, port), host=config.host, port=port, log_level="warning", timeout_graceful_shutdown=3)
