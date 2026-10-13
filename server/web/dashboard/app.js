@@ -934,20 +934,22 @@ function renderLights(panels) {
   if (signature === state.lights) return;
   state.lights = signature;
 
-  // One box per light: its name, then its room, its state and since when.
+  // One box per light: its name, then its room and since when it has been as
+  // it is. How far it is on is the bar on its left edge, not a word.
   const lightNode = (room) => (light) => {
     const changed = light.since ? new Date(light.since * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
-    const value = light.status === 'offline' ? 'Offline' : light.status === 'off' ? 'Off'
-      : light.brightness != null && light.brightness < 100 ? `${light.brightness} %` : 'On';
+    const level = light.status !== 'on' ? 0 : light.brightness ?? 100;
+    const said = light.status === 'offline' ? 'offline' : light.status === 'off' ? 'off'
+      : light.brightness != null ? `on, ${light.brightness} %` : 'on';
     return h('li', {
       class: 'light', 'data-status': light.status,
       // Lit in the colour the light itself reports; the stylesheet has a warm white for the rest.
-      style: light.color ? `--lit: rgb(${light.color.join(' ')})` : null,
-      title: [light.full_name, light.entity, changed && `last change ${changed}`].filter(Boolean).join(' · '),
+      style: `--level: ${level}${light.color ? `; --lit: rgb(${light.color.join(' ')})` : ''}`,
+      title: [light.full_name, said, light.entity, changed && `last change ${changed}`].filter(Boolean).join(' · '),
     },
       h('span', { class: 'light-name' }, light.name),
       h('span', { class: 'light-room' }, room.name || ''),
-      h('span', { class: 'light-state' }, value, h('span', { class: 'light-age' }, lightAge(light, now))));
+      h('span', { class: 'light-state' }, light.status === 'offline' ? 'Offline' : null, h('span', { class: 'light-age' }, lightAge(light, now))));
   };
 
   const floorNode = (floor) => h('div', { class: 'light-floor' },
