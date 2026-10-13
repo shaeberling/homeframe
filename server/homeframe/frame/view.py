@@ -54,7 +54,8 @@ def _weather(dashboard: dict, home: str) -> dict | None:
     view = next((w for w in dashboard["weather"] if w["instance"] == home), None)
     if not view or view["temperature"] is None:
         return None
-    days = [{**day, "condition": _label(day["condition"])} for day in view["days"]]
+    # The forecast cards are narrower than the longest label.
+    days = [{**day, "condition": _label(day["condition"]).replace("Partly cloudy", "Some cloud")} for day in view["days"]]
     return {
         "temperature": view["temperature"],
         "condition": _label(view["condition"]),
@@ -79,10 +80,13 @@ def _temperatures(dashboard: dict, home: str) -> list[dict]:
 
 
 def _activity(dashboard: dict, home: str) -> list[dict]:
+    """The doors that are open. Closed doors and motion are the web dashboard's
+    business; a door sensor that has gone offline is an attention item already."""
     panel = next((a for a in dashboard["activity"] if a["instance"] == home), None)
     return [
         {"name": i["name"], "kind": i["kind"], "active": i["active"], "status": i["status"], "since": _ms(i["since"])}
         for i in (panel["items"] if panel else [])
+        if i["kind"] == "door" and i["active"]
     ]
 
 

@@ -78,7 +78,7 @@ house is a compact strip; problems only take space when there are any.
 | Weather | The `weather.*` entity of the house the frame hangs in (`frame.home`). |
 | Coming up | Calendar events whose title starts with ⭐, soonest first. |
 | To do | Open items of Home Assistant to-do lists. |
-| House strip | The home instance's panel temperatures (up to twelve; a low reading is inverted, a heating thermostat shows its target) and its `activity:` doors and motion sensors. |
+| House strip | The home instance's panel temperatures (up to twelve; a low reading is inverted, a heating thermostat shows its target) and, of its `activity:` sensors, the doors that are open. |
 | Black band | The attention items of **every** house. Absent when all is well. |
 | Bottom line | One summary per other house (temperature range, open doors, items to check), then the device's own WiFi, memory and uptime. |
 
