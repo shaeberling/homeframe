@@ -954,15 +954,14 @@ function renderAttention(items) {
           class: 'att-row',
           type: item.key ? 'button' : null,
           onclick: item.key ? () => revealSensor(item.key) : null,
+          // The colour says how serious and the icon what kind; spelled out here for a pointer.
+          title: `${item.severity === 'critical' ? 'Critical' : 'Warning'} · ${KIND_LABEL[item.kind] || item.kind}`,
         },
           h('span', { class: 'att-icon' }, icon(item.kind)),
-          h('span', {},
+          h('span', { class: 'att-text' },
             h('span', { class: 'att-title' }, item.title),
-            h('span', { class: 'att-detail' }),
-            h('span', { class: 'att-meta' },
-              h('span', { class: 'severity' }, item.severity),
-              h('span', {}, KIND_LABEL[item.kind] || item.kind),
-              h('span', {}, item.instance))));
+            h('span', { class: 'att-where' }, item.instance),
+            h('span', { class: 'att-detail' })));
         return h('li', { class: `att-item ${item.severity}` }, row);
       }));
     }

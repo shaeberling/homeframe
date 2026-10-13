@@ -610,10 +610,11 @@ button.att-row:focus-visible { outline: 2px solid var(--tone); outline-offset: 2
 .att-icon { width: 26px; height: 26px; margin-top: 1px; color: var(--tone); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--tone) 60%, transparent)); }
 .att-item.critical .att-icon { animation: blink 1.6s ease-in-out infinite; }
 
-.att-title { display: block; font-size: 14px; font-weight: 600; line-height: 1.25; }
-.att-detail { display: block; margin-top: 2px; font-size: 13px; color: var(--ink-2); }
-.att-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; font: 500 10px/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-.att-meta .severity { color: var(--tone); }
+/* Title with the house in the corner, the detail below across both. */
+.att-text { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; align-items: baseline; }
+.att-title { font-size: 14px; font-weight: 600; line-height: 1.25; }
+.att-where { font: 500 10px/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.att-detail { grid-column: 1 / -1; margin-top: 2px; font-size: 13px; color: var(--ink-2); }
 
 .att-clear { display: grid; justify-items: center; gap: 10px; padding: 34px 12px 30px; text-align: center; color: var(--ink-2); }
 .att-clear svg { width: 44px; height: 44px; color: var(--ok); filter: drop-shadow(0 0 10px color-mix(in srgb, var(--ok) 55%, transparent)); }
