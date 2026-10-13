@@ -432,7 +432,7 @@ button { font: inherit; color: inherit; }
 
 /* ── Doors & motion ─────────────────────────────────────── */
 
-.activity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 8px 20px; }
+.activity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px 20px; }
 .panel.stale .activity-grid { opacity: 0.45; }
 .activity-empty { font-size: 13px; color: var(--muted); }
 

@@ -812,7 +812,7 @@ function drawDetail() {
 
 // ── Doors & motion ───────────────────────────────────────────
 
-const ACTIVITY_LABEL = { door: ['Open', 'Closed'], motion: ['Motion', 'Clear'], other: ['On', 'Off'] };
+const ACTIVITY_LABEL = { door: ['Open', 'Closed'], shade: ['Open', 'Closed'], motion: ['Motion', 'Clear'], other: ['On', 'Off'] };
 
 // How long ago the last change was, as an upper bound that reads at a glance:
 // "< 12 minutes", "< 5 hours", and from a day on "< 3 days".
@@ -857,7 +857,8 @@ function renderActivity(panels) {
       const [on, off] = ACTIVITY_LABEL[item.kind] || ACTIVITY_LABEL.other;
       const label = item.status === 'offline' ? 'Offline' : item.active == null ? '—' : item.active ? on : off;
       const changed = item.since ? new Date(item.since * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
-      const state = item.status === 'offline' ? 'offline' : item.active ? 'active' : 'idle';
+      // A shade is open for hours on an ordinary day: that is a state, not something to blink about.
+      const state = item.status === 'offline' ? 'offline' : item.active && item.kind !== 'shade' ? 'active' : 'idle';
       const glow = state === 'idle' ? activityGlow(item, now) : 0;
       return h('li', {}, h('button', {
         class: 'activity-item', type: 'button', 'data-state': state,
@@ -880,6 +881,7 @@ function renderActivity(panels) {
 // What a change to this state is called, per kind of sensor.
 const EVENT_LABEL = {
   door: { on: 'Opened', off: 'Closed' },
+  shade: { on: 'Opened', off: 'Closed' },
   motion: { on: 'Motion detected', off: 'Motion cleared' },
   other: { on: 'Turned on', off: 'Turned off' },
 };
