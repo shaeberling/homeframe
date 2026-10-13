@@ -74,6 +74,34 @@ services:
     #   - todo.shopping_list       # an empty list hides the panel
     # limit: 8
 
+# Where people are, shown next to the weather. Each entry is a Home Assistant
+# person entity; `name` and `instance` (default: the frame's home instance) are
+# optional. A person is shown as
+#   - "Home", or the name of any other Home Assistant zone they are in,
+#   - the name of a place below, when within its radius,
+#   - street and town otherwise. That comes from the phone itself: enable the
+#     "Geocoded location" sensor in the Home Assistant companion app. Without
+#     it, the distance from home is shown instead.
+#
+# people:
+#   - person.alex
+#   - entity: person.sam
+#     name: Sam
+#     address: sensor.sam_phone_geocoded_location   # default: found from the phone that tracks them
+#
+# Known places, besides the zones Home Assistant already has.
+#
+# places:
+#   - name: School
+#     latitude: 52.5321
+#     longitude: 13.3849
+#     radius: 150          # metres, 100 if left out
+#   - name: Office
+#     latitude: 52.5200
+#     longitude: 13.4050
+#     people: [alex]       # only Alex is ever "at Office"; without this key
+#                          # a place counts for everyone
+
 # What ends up in the "Attention" column, and in the black band on the frame.
 # Temperature values are in the unit the sensor reports.
 attention:

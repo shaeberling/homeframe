@@ -59,6 +59,7 @@ const state = {
   instances: null,
   weather: null,
   batteries: null,
+  people: null,
   stream: false,
   activity: null,
   detail: null,     // sensor overlay: { key, hours, history }
@@ -266,6 +267,34 @@ function dayLabel(time, zone) {
 }
 
 const degrees = (value) => (value == null ? '—' : `${Math.round(value)}°`);
+
+// ── People ───────────────────────────────────────────────────
+
+// "now", "12 min", "3 h", "2 d": when a position was last reported.
+function sinceShort(seconds) {
+  if (seconds < 90) return 'now';
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)} h`;
+  return `${Math.floor(seconds / 86400)} d`;
+}
+
+function renderPeople(people) {
+  const now = Date.now() / 1000;
+  // The ages are relative, so they change when the data doesn't.
+  const signature = JSON.stringify(people) + Math.floor(now / 30);
+  if (signature === state.people) return;
+  state.people = signature;
+  const root = $('#people');
+  root.hidden = !people.length;
+  root.replaceChildren(...people.map((person) => {
+    const age = person.updated == null ? null : Math.max(0, now - person.updated);
+    const reported = person.updated ? new Date(person.updated * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
+    return h('div', { class: 'person', 'data-kind': person.kind, title: [person.entity, reported && `position reported ${reported}`].filter(Boolean).join(' · ') },
+      h('span', { class: 'person-name' }, person.name),
+      h('span', { class: 'person-where' }, person.where),
+      h('span', { class: 'person-age' }, age == null ? '' : sinceShort(age) === 'now' ? 'now' : `${sinceShort(age)} ago`));
+  }));
+}
 
 function renderWeather(locations) {
   const root = $('#weather');
@@ -1073,6 +1102,7 @@ function render() {
   $('#demo-badge').hidden = !dash.demo;
   renderInstances(dash.instances);
   renderWeather(dash.weather || []);
+  renderPeople(dash.people || []);
 
   const structure = JSON.stringify(dash.panels.map((p) => [p.key, p.title, p.instance, p.sensors.map((sensor) => sensor.key)]));
   const rebuilt = structure !== state.structure;

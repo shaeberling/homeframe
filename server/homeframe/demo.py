@@ -8,7 +8,7 @@ import zlib
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from .config import ActivityItem, Config, Instance, Panel, Sensor
+from .config import ActivityItem, Config, Instance, Panel, Person, Place, Sensor
 from .ha import Series
 
 HOUR = 3600.0
@@ -112,6 +112,8 @@ def demo_config() -> Config:
             panel("Upper floor", "home", ["Bedroom", "Bathroom", "Nursery"]),
             panel("Cabin", "cabin", ["Main room", "Bedroom", "Loft", "Pump house", "Workshop"]),
         ],
+        people=[Person("person.alex", "home"), Person("person.sam", "home"), Person("person.kim", "home")],
+        places=[Place("School", 52.5321, 13.3849, 150)],
         poll_interval=5,
         demo=True,
     )
@@ -201,6 +203,7 @@ class DemoClient:
                 "last_updated": changed,
             })
         if self.instance.id == "home":
+            states += self._people(now)
             started = _iso(self._started)
             states.append({
                 "entity_id": "calendar.family", "state": "off",
@@ -240,6 +243,21 @@ class DemoClient:
                 "last_updated": _iso(now - 6 * HOUR),
             })
         return states
+
+    def _people(self, now: float) -> list[dict]:
+        def entity(entity_id, state, attrs, minutes_ago):
+            when = _iso(now - minutes_ago * 60)
+            return {"entity_id": entity_id, "state": state, "attributes": attrs, "last_changed": when, "last_updated": when}
+
+        return [
+            entity("zone.home", "1", {"friendly_name": "Home", "latitude": 52.52, "longitude": 13.405, "radius": 100}, 600),
+            entity("person.alex", "home", {"friendly_name": "Alex", "latitude": 52.52, "longitude": 13.405, "source": "device_tracker.alex_phone"}, 2),
+            # Inside the circle of a place from the config.
+            entity("person.sam", "not_home", {"friendly_name": "Sam", "latitude": 52.5324, "longitude": 13.3851, "source": "device_tracker.sam_phone"}, 14),
+            # Somewhere else: described by the phone's own address lookup.
+            entity("person.kim", "not_home", {"friendly_name": "Kim", "latitude": 52.5096, "longitude": 13.3759, "source": "device_tracker.kim_phone"}, 47),
+            entity("sensor.kim_phone_geocoded_location", "Potsdamer Platz 1, 10785 Berlin", {"Thoroughfare": "Potsdamer Platz", "Locality": "Berlin"}, 47),
+        ]
 
     async def state_changes(self, entity_id: str, start: datetime, end: datetime) -> list[tuple[float, str]]:
         hours_ago = next(hours for entity, *_rest, hours in ACTIVITY[self.instance.id] if entity == entity_id)

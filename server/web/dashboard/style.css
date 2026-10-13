@@ -357,6 +357,30 @@ button { font: inherit; color: inherit; }
 .spark-line { fill: none; stroke: var(--tone); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
 .spark-area { fill: var(--tone); opacity: 0.14; }
 
+/* ── Overview row: weather, then where people are ───────── */
+
+.overview { display: flex; gap: 12px; align-items: stretch; }
+.overview .weather { flex: 1; min-width: 0; }
+
+/* One set of columns for all rows, so the places line up under each other
+   whatever the length of the names. */
+.people {
+  flex: 0 0 330px; min-width: 0; padding: 9px 14px;
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-content: center; gap: 9px 10px;
+}
+.person { --tone: var(--ink); grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: baseline; }
+.person[data-kind="home"] { --tone: var(--ok); }
+.person[data-kind="place"] { --tone: var(--accent); }
+.person[data-kind="unknown"] { --tone: var(--muted); }
+.person-name { font: 600 11px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); }
+.person-where { font-size: 14px; line-height: 1.15; color: var(--tone); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.person-age { font: 10px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+
+@media (max-width: 1040px) {
+  .overview { flex-direction: column; }
+  .people { flex: none; }
+}
+
 /* ── Weather ────────────────────────────────────────────── */
 
 .weather { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 12px; }

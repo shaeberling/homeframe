@@ -62,6 +62,8 @@ See `config.example.yaml` for every option. In short:
   instance without a panel shows all of its temperature sensors.
 - `attention` — thresholds for what needs a look, plus `watch` / `ignore`
   glob patterns.
+- `people`, `places` — whose location to show next to the weather, and the
+  known places to name it by.
 - `frame` — which house the frame hangs in, orientation, threshold, dithering,
   locale and clock, and the token guarding `/frame.bin`.
 - `services` — where the frame's calendar and to-do list come from.
@@ -110,6 +112,13 @@ The layout is sized to fit one screen: on a 4K display at native resolution it
 is the 1920px layout magnified 2×. Every gauge carries a sparkline of the range
 picked in the top bar (6H / 24H / 7D); the **Charts** button next to it adds
 one large history chart per panel, with a line per sensor.
+
+Next to the weather, the dashboard says where each person in `people` is: at
+home, in another Home Assistant zone, within the radius of one of the
+`places`, or else by street and town, with how long ago the position was
+reported. Street and town come from the phone itself, through the companion
+app's "Geocoded location" sensor, so no coordinates are sent anywhere to be
+looked up; without that sensor the distance from home is shown instead.
 
 Doors and motion show up as they happen. The server keeps a WebSocket open to
 each Home Assistant, which pushes every state change, and tells open browsers

@@ -9,6 +9,7 @@ from fnmatch import fnmatchcase
 
 from .config import Attention, Config, Instance, Panel, Sensor
 from .ha import parse_time, to_float
+from .people import people_view
 from .weather import weather_view
 
 OFFLINE_STATES = {"unavailable", "unknown"}
@@ -197,6 +198,7 @@ def build_dashboard(config: Config, live: dict[str, InstanceState]) -> dict:
             view for instance in config.instances
             if (view := weather_view(instance, live[instance.id])) is not None
         ],
+        "people": people_view(config, live),
         "panels": panels,
         "activity": activity,
         "batteries": [

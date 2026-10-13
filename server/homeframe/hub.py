@@ -12,6 +12,7 @@ from .config import Config, Instance
 from .dashboard import InstanceState, activity_item, activity_state, build_dashboard, resolve_panels
 from .demo import DemoClient
 from .ha import HAClient, Series, describe_error, parse_time
+from .people import watched as watched_people
 from .services import entities_of, fetch_agenda, fetch_todos
 from .weather import days_from_daily, days_from_hourly, supports_daily, weather_entity
 
@@ -129,9 +130,12 @@ class Hub:
             live.states.pop(entity_id, None)
         else:
             live.states[entity_id] = state
-        # Doors and motion are what people watch happen; everything else is
-        # fine with the browser's own refresh.
-        watched = any(item.entity == entity_id for item in instance.activity or [])
+        # Doors, motion and where people are is what one watches happen;
+        # everything else is fine with the browser's own refresh.
+        watched = (
+            any(item.entity == entity_id for item in instance.activity or [])
+            or entity_id in watched_people(self.config, instance.id)
+        )
         if watched and (previous or {}).get("state") != (state or {}).get("state"):
             self._notify()
 

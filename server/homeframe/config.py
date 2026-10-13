@@ -114,6 +114,28 @@ class Todo:
 
 
 @dataclass
+class Person:
+    entity: str  # a person.* entity
+    instance: str
+    name: str | None = None
+    # Sensor holding the phone's street address; None looks for the companion
+    # app's "geocoded location" sensor of the phone the person is tracked by.
+    address: str | None = None
+
+
+@dataclass
+class Place:
+    """A known location: within `radius` metres of it, a person is shown as being there."""
+
+    name: str
+    latitude: float
+    longitude: float
+    radius: float = 100
+    # person.* entities the place belongs to; None means it is a place for everyone.
+    people: list[str] | None = None
+
+
+@dataclass
 class Config:
     instances: list[Instance]
     panels: list[Panel] = field(default_factory=list)
@@ -121,6 +143,8 @@ class Config:
     frame: Frame = field(default_factory=Frame)
     calendar: Calendar = field(default_factory=Calendar)
     todo: Todo = field(default_factory=Todo)
+    people: list[Person] = field(default_factory=list)
+    places: list[Place] = field(default_factory=list)
     # The IPv4 wildcard, so the ESP32 can reach /frame.bin.
     host: str = "0.0.0.0"
     port: int = 8080
@@ -163,6 +187,8 @@ def load_config(path: Path) -> Config:
         frame=_frame(_mapping(raw, "frame"), ids),
         calendar=_calendar(_mapping(services, "calendar"), ids),
         todo=_todo(_mapping(services, "todo"), ids),
+        people=[_person(p, f"people[{n}]", ids) for n, p in enumerate(_list(raw, "people"), 1)],
+        places=[_place(p, f"places[{n}]") for n, p in enumerate(_list(raw, "places"), 1)],
         host=str(server.get("host", "0.0.0.0")),
         port=int(server.get("port", 8080)),
         poll_interval=max(2.0, _number(server, "poll_interval", "server") or 15),
@@ -304,6 +330,42 @@ def _todo(raw: dict, instance_ids: list[str]) -> Todo:
         instance=_instance_ref(raw, "instance", where, instance_ids),
         entities=_entities(raw, where, "todo."),
         limit=int(_number(raw, "limit", where) or Todo().limit),
+    )
+
+
+def _person(raw, where: str, instance_ids: list[str]) -> Person:
+    if isinstance(raw, str):
+        raw = {"entity": raw}
+    if not isinstance(raw, dict) or not str(raw.get("entity") or "").startswith("person."):
+        raise ConfigError(f"{where}: expected a person.* entity id or a mapping with an entity key")
+    address = raw.get("address")
+    if address is not None and not str(address).startswith("sensor."):
+        raise ConfigError(f"{where}.address: expected a sensor.* entity id")
+    return Person(
+        entity=str(raw["entity"]).strip(),
+        # People live where the frame hangs unless told otherwise.
+        instance=_instance_ref(raw, "instance", where, instance_ids) or "",
+        name=str(raw["name"]) if raw.get("name") else None,
+        address=str(address) if address else None,
+    )
+
+
+def _place(raw, where: str) -> Place:
+    if not isinstance(raw, dict) or not raw.get("name"):
+        raise ConfigError(f"{where}: expected a mapping with name, latitude and longitude")
+    latitude, longitude = _number(raw, "latitude", where), _number(raw, "longitude", where)
+    if latitude is None or longitude is None or not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        raise ConfigError(f"{where} ({raw['name']}): latitude and longitude are required, in degrees")
+    radius = _number(raw, "radius", where)
+    if radius is not None and radius <= 0:
+        raise ConfigError(f"{where} ({raw['name']}): radius must be positive, in metres")
+    people = None
+    if raw.get("people") is not None:
+        # "sascha" is as good as "person.sascha".
+        people = [p if p.startswith("person.") else f"person.{p.lower()}" for p in map(str, _list(raw, "people", where))]
+    return Place(
+        name=str(raw["name"]), latitude=latitude, longitude=longitude,
+        radius=100 if radius is None else radius, people=people,
     )
 
 
