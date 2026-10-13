@@ -389,7 +389,7 @@ button { font: inherit; color: inherit; }
 
 .weather { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 12px; }
 
-.wx { display: flex; align-items: center; gap: 16px; padding: 9px 14px; }
+.wx { position: relative; display: flex; align-items: center; gap: 16px; padding: 9px 14px 17px; }
 .wx.stale { opacity: 0.5; }
 
 .wx-now { flex: none; display: flex; align-items: center; gap: 11px; }
@@ -410,6 +410,19 @@ button { font: inherit; color: inherit; }
 .wx-day .high { font-size: 14px; }
 .wx-day .low { font-size: 12px; color: var(--muted); }
 .wx-empty { flex: 1; color: var(--muted); font: 10px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; }
+
+/* The day from midnight to midnight along the bottom of the box. */
+.wx-sun {
+  --night: color-mix(in srgb, var(--accent) 55%, transparent);
+  --day: #ffd23f;
+  position: absolute; left: 14px; right: 14px; bottom: 6px; height: 4px; border-radius: 2px;
+  background: linear-gradient(to right, var(--night) var(--rise), var(--day) 0 var(--set), var(--night) 0);
+}
+.wx-sun[data-sun="unknown"] { background: var(--line-strong); }
+.wx-sun-now {
+  position: absolute; top: -3px; bottom: -3px; left: calc(var(--now) * 1%); width: 3px; margin-left: -1.5px;
+  border-radius: 1px; background: var(--crit); box-shadow: 0 0 6px var(--crit);
+}
 
 /* Lets a cloud hide the sun or moon drawn behind it. */
 .occlude { fill: #0c131c; }

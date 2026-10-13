@@ -243,6 +243,12 @@ class DemoClient:
                 "attributes": {"friendly_name": "Household"}, "last_changed": started, "last_updated": started,
             })
         _zone, condition, temperature, _days = WEATHER[self.instance.id]
+        day = now - now % 86400
+        states.append({
+            "entity_id": "sun.sun", "state": "above_horizon",
+            "attributes": {"next_rising": _iso(day + 86400 + 6.5 * 3600), "next_setting": _iso(day + 86400 + 18.25 * 3600)},
+            "last_changed": _iso(now), "last_updated": _iso(now),
+        })
         states.append({
             "entity_id": "weather.forecast_home",
             "state": condition,

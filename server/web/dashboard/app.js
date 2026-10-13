@@ -252,6 +252,9 @@ function tickClock() {
   document.querySelectorAll('.wx-local').forEach((node) => {
     node.textContent = timeIn(node.dataset.zone, now);
   });
+  document.querySelectorAll('.wx-sun').forEach((node) => {
+    node.style.setProperty('--now', dayFraction(node.dataset.zone, now) * 100);
+  });
 }
 
 // ── Weather ──────────────────────────────────────────────────
@@ -265,6 +268,24 @@ function dayLabel(time, zone) {
   const key = (when) => new Intl.DateTimeFormat('en-CA', { timeZone: zone }).format(when);
   if (key(new Date(time)) === key(new Date())) return 'Today';
   return new Intl.DateTimeFormat(undefined, { weekday: 'short', timeZone: zone }).format(new Date(time));
+}
+
+// How far through its own day a location is, 0 at midnight to 1 at the next.
+function dayFraction(zone, when) {
+  const [hours, minutes] = timeIn(zone, when).split(':').map(Number);
+  return ((hours % 24) * 60 + minutes) / 1440;
+}
+
+const clockTime = (minutes) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+
+// The day from midnight to midnight: night, daylight, and a mark for now.
+function sunStrip(sun, zone) {
+  const style = [`--now: ${dayFraction(zone, new Date()) * 100}`];
+  if (sun) style.push(`--rise: ${sun.rise / 14.4}%`, `--set: ${sun.set / 14.4}%`);
+  return h('div', {
+    class: 'wx-sun', 'data-zone': zone, 'data-sun': sun ? 'known' : 'unknown', style: style.join('; '),
+    title: sun ? `Sunrise ${clockTime(sun.rise)} · Sunset ${clockTime(sun.set)}` : 'Sunrise and sunset unknown',
+  }, h('span', { class: 'wx-sun-now' }));
 }
 
 const degrees = (value) => (value == null ? '—' : `${Math.round(value)}°`);
@@ -332,7 +353,8 @@ function renderWeather(locations) {
           h('div', { class: 'wx-line' },
             h('span', { class: 'wx-temp' }, num(location.temperature), h('small', {}, location.unit)),
             h('span', { class: 'wx-condition' }, WEATHER_LABEL[location.condition] || location.condition || 'Unavailable')))),
-      days);
+      days,
+      sunStrip(location.sun, zone));
   }));
 }
 

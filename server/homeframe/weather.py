@@ -50,10 +50,7 @@ def days_from_daily(entries: list[dict]) -> list[dict]:
 
 def days_from_hourly(entries: list[dict], time_zone: str | None) -> list[dict]:
     """Daily highs and lows for providers that only publish an hourly forecast."""
-    try:
-        zone = ZoneInfo(time_zone) if time_zone else timezone.utc
-    except ZoneInfoNotFoundError:
-        zone = timezone.utc
+    zone = _zone(time_zone)
 
     by_day: dict = {}
     for entry in entries:
@@ -83,6 +80,31 @@ def days_from_hourly(entries: list[dict], time_zone: str | None) -> list[dict]:
     return days[:FORECAST_DAYS]
 
 
+def _zone(time_zone: str | None):
+    try:
+        return ZoneInfo(time_zone) if time_zone else timezone.utc
+    except ZoneInfoNotFoundError:
+        return timezone.utc
+
+
+def sun_times(states: dict[str, dict], time_zone: str | None) -> dict | None:
+    """Sunrise and sunset as minutes into the local day, from Home Assistant's sun.
+
+    It only publishes the next of each, so one of the two is tomorrow's; a day
+    apart they differ by a minute or two, which a strip across the day can't show.
+    """
+    attrs = (states.get("sun.sun") or {}).get("attributes") or {}
+    zone = _zone(time_zone)
+    minutes = []
+    for key in ("next_rising", "next_setting"):
+        when = parse_time(attrs.get(key))
+        if when is None:
+            return None
+        local = datetime.fromtimestamp(when, zone)
+        minutes.append(local.hour * 60 + local.minute)
+    return {"rise": minutes[0], "set": minutes[1]}
+
+
 def weather_view(instance: Instance, live) -> dict | None:
     entity = weather_entity(instance, live.states)
     if not entity:
@@ -101,6 +123,7 @@ def weather_view(instance: Instance, live) -> dict | None:
         "wind_unit": attrs.get("wind_speed_unit") or "",
         "precipitation_unit": attrs.get("precipitation_unit") or "",
         "time_zone": live.time_zone,
+        "sun": sun_times(live.states, live.time_zone),
         "stale": live.status == "error",
         "days": live.forecast if live.forecast_entity == entity else [],
     }
