@@ -809,6 +809,20 @@ function activityAge(item, now) {
   return `< ${count} ${unit}${count === 1 ? '' : 's'}`;
 }
 
+// How strongly a sensor that has gone quiet still glows: full the moment it
+// was last triggered, nothing after a day. The fall is logarithmic, so most
+// of it happens in the first hour (about half is left by then) and the rest
+// is a long tail: a glance tells "just now" from "this morning".
+const GLOW_SPAN = 24 * 3600;
+const GLOW_KNEE = 2 * 60;
+
+function activityGlow(item, now) {
+  if (item.since == null) return 0;
+  const age = Math.max(0, now - item.since);
+  if (age >= GLOW_SPAN) return 0;
+  return 1 - Math.log1p(age / GLOW_KNEE) / Math.log1p(GLOW_SPAN / GLOW_KNEE);
+}
+
 function renderActivity(panels) {
   const now = Date.now() / 1000;
   // The texts are relative times, so they also change when the data doesn't.
@@ -829,8 +843,10 @@ function renderActivity(panels) {
       const label = item.status === 'offline' ? 'Offline' : item.active == null ? '—' : item.active ? on : off;
       const changed = item.since ? new Date(item.since * 1000).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '';
       const state = item.status === 'offline' ? 'offline' : item.active ? 'active' : 'idle';
+      const glow = state === 'idle' ? activityGlow(item, now) : 0;
       return h('li', {}, h('button', {
         class: 'activity-item', type: 'button', 'data-state': state,
+        ...(glow > 0 ? { 'data-recent': '', style: `--glow:${glow.toFixed(3)}` } : {}),
         title: [item.entity, changed && `last change ${changed}`].filter(Boolean).join(' · '),
         onclick: () => openEvents(panel, item, label, state),
       },

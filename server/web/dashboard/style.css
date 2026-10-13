@@ -453,7 +453,7 @@ button { font: inherit; color: inherit; }
 .card, .battery, .activity-item { position: relative; isolation: isolate; }
 .card:is([data-status="low"], [data-status="critical"], [data-status="offline"])::after,
 .battery:is([data-status="low"], [data-status="offline"])::after,
-.activity-item:is([data-state="offline"], [data-state="active"])::after {
+.activity-item:is([data-state="offline"], [data-state="active"], [data-recent])::after {
   content: "";
   position: absolute;
   inset: -1px;
@@ -469,6 +469,9 @@ button { font: inherit; color: inherit; }
 /* An open door or motion right now is the one thing that does blink: a green
    frame, once a second, for as long as the sensor is detecting. */
 .activity-item[data-state="active"]::after { animation: detect 1s linear infinite; }
+/* Once it has gone quiet the same green frame stays, steady, and fades over
+   the following day; the script sets how much of it is left. */
+.activity-item[data-recent]::after { --tone: var(--ok); opacity: var(--glow, 0); }
 
 /* ── History chart ──────────────────────────────────────── */
 
