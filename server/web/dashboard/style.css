@@ -419,7 +419,14 @@ button { font: inherit; color: inherit; }
 .panel.batteries .battery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px 12px; min-height: 0; overflow-y: auto; padding: 3px 5px; margin: -3px -5px; }
 .panel.batteries .battery { gap: 2px 4px; }
 .panel.batteries .battery-name { font-size: 12px; line-height: 1.2; }
-.panel.batteries .battery-value { font-size: 10px; letter-spacing: 0; }
+.panel.batteries .battery-value { font-size: 9px; letter-spacing: 0; }
+/* An icon is centred in the whole row, name and bar together, which is the
+   box its frame is drawn around; the bar stops short to make room for it. */
+.battery:has(.battery-icon) .battery-name { grid-area: 1 / 1; }
+.battery:has(.battery-icon) .battery-meter { grid-area: 2 / 1; }
+.battery-value:has(.battery-icon) { grid-area: 1 / 2 / span 2; align-self: center; line-height: 0; }
+.battery-icon { display: block; width: 13px; height: 13px; }
+.battery-icon svg { display: block; width: 100%; height: 100%; }
 .panel.batteries .battery-meter { height: 2px; }
 .panel.batteries .battery[data-status]::after { inset: -3px -5px; }
 

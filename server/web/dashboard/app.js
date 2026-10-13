@@ -517,9 +517,12 @@ function renderBatteries(panels) {
       panel.items.length === 0 ? h('p', { class: 'battery-empty' },
         `No battery sensors in ${panel.instance} yet. They will show up here once they are added.`) :
       h('ul', { class: 'battery-grid' }, ...panel.items.map((item) => {
-        const value = item.status === 'offline' ? 'Offline'
+        // Offline and a bare "low" get the icon they have in the attention list
+        // rather than a word; the title still says it for a pointer or a screen reader.
+        const symbol = (kind, label) => h('span', { class: 'battery-icon', role: 'img', 'aria-label': label, title: label }, icon(kind));
+        const value = item.status === 'offline' ? symbol('offline', 'Offline')
           : item.level != null ? `${Math.round(item.level)} %`
-          : item.status === 'low' ? 'Low' : item.status === 'ok' ? 'OK' : '—';
+          : item.status === 'low' ? symbol('battery', 'Battery low') : item.status === 'ok' ? 'OK' : '—';
         const width = item.status === 'offline' ? 0 : item.level ?? (item.status === 'ok' ? 100 : 0);
         return h('li', { class: 'battery', 'data-status': item.status, title: item.entity },
           h('span', { class: 'battery-name' }, item.name),
