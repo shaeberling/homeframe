@@ -854,6 +854,12 @@ function renderActivity(panels) {
         h('span', { class: 'activity-state' }, label),
         h('span', { class: 'activity-time' }, activityAge(item, now))));
     })))));
+  // The panels were just rebuilt, which starts every blink from the top. Put
+  // them all on the page's own clock instead, so the beat carries on across
+  // rebuilds and all active sensors blink together.
+  for (const animation of document.getAnimations()) {
+    if (animation.animationName === 'detect') animation.startTime = 0;
+  }
 }
 
 // What a change to this state is called, per kind of sensor.
