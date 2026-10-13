@@ -1,5 +1,5 @@
-from homeframe.config import Attention, Instance
-from homeframe.dashboard import InstanceState, _battery_panel
+from homeframe.config import Attention, Instance, Sensor
+from homeframe.dashboard import InstanceState, _battery_panel, humidity_of
 
 
 def battery(entity, value, name):
@@ -22,3 +22,23 @@ def test_batteries_run_from_empty_at_the_top_to_full_at_the_bottom():
     panel = _battery_panel(instance, live, Attention(), lambda _instance, _entity: None)
 
     assert [i["name"] for i in panel["items"]] == ["Gone", "Flat", "Weak", "Half", "Good", "Full", "Fine"]
+
+
+def test_a_sensor_gets_the_humidity_of_its_own_device_unless_one_is_named():
+    def sensor(entity, kind):
+        return {"entity_id": entity, "state": "50", "attributes": {"device_class": kind}}
+
+    states = [
+        sensor("sensor.hall_temperature", "temperature"), sensor("sensor.hall_humidity", "humidity"),
+        sensor("sensor.hall_battery", "battery"), sensor("sensor.attic_temperature", "temperature"),
+        sensor("sensor.attic_humidity", "humidity"),
+    ]
+    live = InstanceState(states={s["entity_id"]: s for s in states}, last_ok=1.0)
+    live.devices = {
+        "sensor.hall_temperature": "hall", "sensor.hall_humidity": "hall", "sensor.hall_battery": "hall",
+        "sensor.attic_temperature": "attic", "sensor.attic_humidity": "other",
+    }
+
+    assert humidity_of(Sensor(entity="sensor.hall_temperature"), live) == "sensor.hall_humidity"
+    assert humidity_of(Sensor(entity="sensor.attic_temperature"), live) is None
+    assert humidity_of(Sensor(entity="sensor.attic_temperature", humidity="sensor.attic_humidity"), live) == "sensor.attic_humidity"

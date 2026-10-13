@@ -20,6 +20,9 @@
   --crit: #ff4763;
   --crit-dim: #48121e;
   --context: #37475c;
+  --sun-up: #ffd23f;
+  --humid: #a48bff;
+  --sun-down: color-mix(in srgb, var(--accent) 55%, transparent);
   --idle-dim: #17212e;
 
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
@@ -413,10 +416,8 @@ button { font: inherit; color: inherit; }
 
 /* The day from midnight to midnight along the bottom of the box. */
 .wx-sun {
-  --night: color-mix(in srgb, var(--accent) 55%, transparent);
-  --day: #ffd23f;
   position: absolute; left: 14px; right: 14px; bottom: 6px; height: 4px; border-radius: 2px;
-  background: linear-gradient(to right, var(--night) var(--rise), var(--day) 0 var(--set), var(--night) 0);
+  background: linear-gradient(to right, var(--sun-down) var(--rise), var(--sun-up) 0 var(--set), var(--sun-down) 0);
 }
 .wx-sun[data-sun="unknown"] { background: var(--line-strong); }
 .wx-sun-now {
@@ -590,6 +591,16 @@ body:not(.charts) .chart { display: none; }
 
 .grid-line { stroke: var(--grid); stroke-width: 1; }
 .axis-label { fill: var(--muted); font: 10px/1 var(--mono); font-variant-numeric: tabular-nums; }
+.axis-label.other { fill: var(--context); }
+.axis-place { fill: var(--ink-2); letter-spacing: 0.08em; }
+.axis-place.other { fill: var(--muted); }
+.axis-label.extra { fill: var(--humid); }
+.line.extra, .solo .line.extra { stroke: var(--humid); stroke-width: 1.5; opacity: 0.9; }
+.tt-row.extra .swatch, .chart-stats.extra .swatch { background: var(--humid); opacity: 1; }
+.chart-stats.extra { margin: 0 0 0 14px; min-height: 0; }
+.chart-stats.extra .swatch { display: inline-block; width: 10px; height: 2px; margin-right: 7px; vertical-align: middle; }
+.sun-up { fill: var(--sun-up); }
+.sun-down { fill: var(--sun-down); }
 .line { fill: none; stroke: var(--accent); stroke-width: 1.25; stroke-linejoin: round; stroke-linecap: round; opacity: 0.6; transition: opacity 0.15s; }
 .pointing .line { opacity: 0.22; }
 .pointing .line.hot { opacity: 1; stroke-width: 2.25; }

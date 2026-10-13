@@ -9,7 +9,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from .config import Config, Instance
-from .dashboard import InstanceState, activity_item, activity_state, build_dashboard, resolve_panels
+from .dashboard import InstanceState, activity_item, activity_state, build_dashboard, humidity_of, resolve_panels
 from .demo import DemoClient
 from .ha import HAClient, Series, describe_error, parse_time
 from .lights import light_entities
@@ -327,7 +327,11 @@ class Hub:
         wanted: dict[str, list[str]] = {}
         for _key, panel in resolve_panels(self.config, self._live):
             entities = wanted.setdefault(panel.instance, [])
-            entities.extend(s.entity for s in panel.sensors if s.entity not in entities)
+            for sensor in panel.sensors:
+                # The humidity that goes with a sensor is charted next to it.
+                for entity in (sensor.entity, humidity_of(sensor, self._live[panel.instance])):
+                    if entity and entity not in entities:
+                        entities.append(entity)
         return wanted
 
     async def _fetch_history(self, hours: int, wanted: dict[str, list[str]]) -> dict:

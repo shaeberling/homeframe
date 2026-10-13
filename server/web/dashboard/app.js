@@ -132,6 +132,25 @@ const timeFormat = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute:
 const dayFormat = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 const dateFormat = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
+// The same two formats for a place in another time zone than the browser's.
+const zoneFormats = new Map();
+function formatsIn(zone) {
+  if (!zone) return { time: timeFormat, day: dayFormat };
+  if (!zoneFormats.has(zone)) {
+    zoneFormats.set(zone, {
+      time: new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: zone }),
+      day: new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: zone }),
+    });
+  }
+  return zoneFormats.get(zone);
+}
+
+// Minutes into the day it is at `when` in a time zone.
+function minutesIn(zone, when) {
+  const [hours, minutes] = formatsIn(zone).time.format(when).split(':').map(Number);
+  return (hours % 24) * 60 + minutes;
+}
+
 const num = (value, digits = 1) => (value == null ? '—' : value.toFixed(digits));
 const withUnit = (value, unit) => (value == null ? '—' : `${num(value)}${unit ? ' ' + unit : ''}`);
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
@@ -260,9 +279,7 @@ function tickClock() {
 // ── Weather ──────────────────────────────────────────────────
 
 // Each location is shown in its own time zone, which may differ from the browser's.
-function timeIn(zone, when) {
-  return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: zone }).format(when);
-}
+const timeIn = (zone, when) => formatsIn(zone).time.format(when);
 
 function dayLabel(time, zone) {
   const key = (when) => new Intl.DateTimeFormat('en-CA', { timeZone: zone }).format(when);
@@ -271,10 +288,7 @@ function dayLabel(time, zone) {
 }
 
 // How far through its own day a location is, 0 at midnight to 1 at the next.
-function dayFraction(zone, when) {
-  const [hours, minutes] = timeIn(zone, when).split(':').map(Number);
-  return ((hours % 24) * 60 + minutes) / 1440;
-}
+const dayFraction = (zone, when) => minutesIn(zone, when) / 1440;
 
 const clockTime = (minutes) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
 
@@ -621,14 +635,14 @@ function niceStep(rough) {
   return (unit <= 1 ? 1 : unit <= 2 ? 2 : unit <= 5 ? 5 : 10) * power;
 }
 
-function timeTicks(start, end, maxTicks) {
+function timeTicks(start, end, maxTicks, hourOf = (when) => when.getHours()) {
   const spanHours = (end - start) / 3600e3;
   const step = [1, 2, 3, 6, 12, 24].find((hours) => spanHours / hours <= maxTicks) || 24;
   const ticks = [];
   const cursor = new Date(start);
   cursor.setMinutes(0, 0, 0);
   for (; cursor.getTime() <= end; cursor.setHours(cursor.getHours() + 1)) {
-    if (cursor.getTime() >= start && cursor.getHours() % step === 0) ticks.push(new Date(cursor));
+    if (cursor.getTime() >= start && hourOf(cursor) % step === 0) ticks.push(new Date(cursor));
   }
   // At most one label per day beyond that: drop days evenly if still too dense.
   const keepEvery = Math.ceil(ticks.length / maxTicks);
@@ -671,7 +685,11 @@ function renderChart(panel) {
 
 // Draws the history of one or more sensors into `plot`. A single sensor gets
 // a filled line; several get one line each, highlighted by pointing at them.
-function drawChart(plot, sensors, history, { label, height = CHART.height, tip = tooltip } = {}) {
+// With a `zone` the time axis is in that place's time, not the browser's; `sun`
+// adds its daylight under the axis, and `other` a second row of times for the
+// same moments somewhere else. `extra` is a second measurement of the same
+// sensor, drawn as its own line against a scale on the right.
+function drawChart(plot, sensors, history, { label, height = CHART.height, tip = tooltip, zone, place, sun, other, extra } = {}) {
   const empty = (message) => plot.replaceChildren(h('p', { class: 'chart-empty' }, message));
   if (!history) return empty('Loading history…');
 
@@ -682,9 +700,19 @@ function drawChart(plot, sensors, history, { label, height = CHART.height, tip =
 
   const width = plot.getBoundingClientRect().width / scale;
   if (!width) return;
-  const { left, right, top, bottom } = CHART;
+  const formats = formatsIn(zone);
+  const elsewhere = other && formatsIn(other.zone);
+  const twoRows = Boolean(elsewhere) && elsewhere.time.format(history.end) !== formats.time.format(history.end);
+  const rowNames = twoRows ? [place.toUpperCase(), `(${other.name.toUpperCase()})`] : [];
+  const sunBand = sun && zone ? 8 : 0;
+  const extraSeries = (extra && history.series[extra.key]) || [];
+  const extraPoints = extraSeries.filter((point) => point[1] != null);
+  const { top } = CHART;
+  const right = extraPoints.length ? 46 : CHART.right;
+  const left = Math.max(CHART.left, ...rowNames.map((name) => 16 + name.length * 6.1));
   const innerWidth = width - left - right;
-  const baseline = height - bottom;
+  const baseline = height - CHART.bottom - sunBand - (twoRows ? 13 : 0);
+  const timeRow = baseline + 18 + sunBand;
 
   let lo = Math.min(...allPoints.map((point) => point[1]));
   let hi = Math.max(...allPoints.map((point) => point[1]));
@@ -708,9 +736,54 @@ function drawChart(plot, sensors, history, { label, height = CHART.height, tip =
       s('text', { class: 'axis-label', x: left - 8, y: y(value) + 3.5, 'text-anchor': 'end' }, num(value, step < 1 ? 1 : 0)));
   }
 
-  for (const tick of timeTicks(history.start, history.end, Math.max(2, Math.floor(innerWidth / 84)))) {
-    const label = tick.getHours() === 0 ? dayFormat.format(tick) : timeFormat.format(tick);
-    svg.append(s('text', { class: 'axis-label', x: x(tick.getTime()), y: height - 8, 'text-anchor': 'middle' }, label));
+  // The second scale has its own range, labelled on the right.
+  let y2 = null;
+  if (extraPoints.length) {
+    let lo2 = Math.min(...extraPoints.map((point) => point[1]));
+    let hi2 = Math.max(...extraPoints.map((point) => point[1]));
+    if (hi2 - lo2 < 1) { lo2 -= 0.5; hi2 += 0.5; }
+    const step2 = niceStep((hi2 - lo2) / 4);
+    lo2 = Math.floor(lo2 / step2) * step2;
+    hi2 = Math.ceil(hi2 / step2) * step2;
+    y2 = (v) => top + (1 - (v - lo2) / (hi2 - lo2)) * (baseline - top);
+    for (let i = 0; i <= Math.round((hi2 - lo2) / step2); i++) {
+      const value = lo2 + i * step2;
+      svg.append(s('text', { class: 'axis-label extra', x: width - right + 8, y: y2(value) + 3.5 }, `${num(value, step2 < 1 ? 1 : 0)} ${extra.unit}`));
+    }
+  }
+
+  const hourOf = (when) => Math.floor(minutesIn(zone, when) / 60);
+  for (const tick of timeTicks(history.start, history.end, Math.max(2, Math.floor(innerWidth / 84)), hourOf)) {
+    const label = hourOf(tick) === 0 ? formats.day.format(tick) : formats.time.format(tick);
+    svg.append(s('text', { class: 'axis-label', x: x(tick.getTime()), y: timeRow, 'text-anchor': 'middle' }, label));
+    if (twoRows) {
+      svg.append(s('text', { class: 'axis-label other', x: x(tick.getTime()), y: timeRow + 13, 'text-anchor': 'middle' }, `(${elsewhere.time.format(tick)})`));
+    }
+  }
+  rowNames.forEach((name, row) => {
+    svg.append(s('text', { class: `axis-label axis-place${row ? ' other' : ''}`, x: left - 8, y: timeRow + row * 13, 'text-anchor': 'end' }, name));
+  });
+
+  // Daylight under the axis: one run per stretch of day or night.
+  if (sunBand) {
+    const isDay = (when) => {
+      const minutes = minutesIn(zone, when);
+      return sun.rise <= sun.set ? minutes >= sun.rise && minutes < sun.set : minutes >= sun.rise || minutes < sun.set;
+    };
+    const stride = Math.max(60e3, (history.end - history.start) / (innerWidth * 2));
+    const band = s('g', {}, s('title', {}, `Sunrise ${clockTime(sun.rise)} · Sunset ${clockTime(sun.set)}`));
+    let from = history.start;
+    let day = isDay(from);
+    for (let t = from + stride; ; t += stride) {
+      const done = t >= history.end;
+      if (!done && isDay(t) === day) continue;
+      const until = done ? history.end : t;
+      band.append(s('rect', { class: day ? 'sun-up' : 'sun-down', x: x(from), y: baseline + 4, width: Math.max(0, x(until) - x(from)), height: 4 }));
+      if (done) break;
+      from = t;
+      day = !day;
+    }
+    svg.append(band);
   }
 
   // A threshold line only makes sense when the whole panel shares it.
@@ -733,6 +806,7 @@ function drawChart(plot, sensors, history, { label, height = CHART.height, tip =
   const lines = new Map(sensors.map((sensor) => [
     sensor.key, s('path', { class: 'line', d: paths(seriesOf(sensor), x, y, baseline).line }),
   ]));
+  if (y2) svg.append(s('path', { class: 'line extra', d: paths(extraSeries, x, y2, baseline).line }));
   svg.append(...lines.values());
 
   const crosshair = s('line', { class: 'crosshair', y1: top, y2: baseline, visibility: 'hidden' });
@@ -768,9 +842,10 @@ function drawChart(plot, sensors, history, { label, height = CHART.height, tip =
 
     const when = new Date(point[0]);
     tip.replaceChildren(
-      h('div', { class: 'tt-time' }, `${dayFormat.format(when)} · ${timeFormat.format(when)}`),
+      h('div', { class: 'tt-time' }, `${formats.day.format(when)} · ${formats.time.format(when)}${twoRows ? ` (${elsewhere.time.format(when)} ${other.name})` : ''}`),
       ...readings.map(({ sensor, value }) => h('div', { class: `tt-row${sensor === closest?.sensor ? ' hot' : ''}` },
-        h('i', { class: 'swatch' }), sensor.name, h('b', {}, withUnit(value, sensor.unit)))));
+        h('i', { class: 'swatch' }), sensor.name, h('b', {}, withUnit(value, sensor.unit)))),
+      ...(y2 ? [h('div', { class: 'tt-row extra' }, h('i', { class: 'swatch' }), extra.name, h('b', {}, withUnit(valueAt(extraSeries, point[0]), extra.unit)))] : []));
     tip.hidden = false;
     const box = tip.getBoundingClientRect();
     const tx = event.clientX + 18 + box.width > window.innerWidth ? event.clientX - 18 - box.width : event.clientX + 18;
@@ -859,16 +934,30 @@ function renderDetail() {
 function drawDetail() {
   const entry = state.detail && findSensor(state.detail.key);
   if (!entry || !$('#detail').open) return;
-  const { sensor } = entry;
+  const { sensor, panel } = entry;
+  // Times are the house's own; a house other than the home one also gets the home's.
+  const here = state.dash.instances.find((instance) => instance.name === panel.instance);
+  const home = state.dash.instances.find((instance) => instance.id === state.dash.home);
+  const other = here && home && here !== home && home.time_zone ? { zone: home.time_zone, name: home.name } : null;
   const history = state.detail.history?.hours === state.detail.hours ? state.detail.history : null;
   const values = (history?.series[sensor.key] || []).map((point) => point[1]).filter((value) => value != null);
-  const stat = (label, value) => h('span', {}, label, h('b', {}, withUnit(value, sensor.unit)));
-  $('#detail-stats').replaceChildren(...(values.length ? [
-    stat('MIN', Math.min(...values)),
-    stat('AVG', values.reduce((a, b) => a + b, 0) / values.length),
-    stat('MAX', Math.max(...values)),
-  ] : []));
-  drawChart($('#detail-plot'), [sensor], history, { label: sensor.name, height: 460, tip: $('#detail-tooltip') });
+  const humidity = sensor.chart_humidity && { ...sensor.chart_humidity, name: 'Humidity' };
+  const damp = (humidity && history?.series[humidity.key] || []).map((point) => point[1]).filter((value) => value != null);
+  const stats = (numbers, unit) => {
+    const stat = (label, value) => h('span', {}, label, h('b', {}, withUnit(value, unit)));
+    return [
+      stat('MIN', Math.min(...numbers)),
+      stat('AVG', numbers.reduce((a, b) => a + b, 0) / numbers.length),
+      stat('MAX', Math.max(...numbers)),
+    ];
+  };
+  $('#detail-stats').replaceChildren(
+    ...(values.length ? stats(values, sensor.unit) : []),
+    ...(damp.length ? [h('span', { class: 'chart-stats extra' }, h('span', {}, h('i', { class: 'swatch' }), 'HUMIDITY'), ...stats(damp, humidity.unit))] : []));
+  drawChart($('#detail-plot'), [sensor], history, {
+    label: sensor.name, height: 460, tip: $('#detail-tooltip'),
+    zone: here?.time_zone, place: here?.name, sun: here?.sun, other, extra: humidity,
+  });
 }
 
 // ── Doors & motion ───────────────────────────────────────────

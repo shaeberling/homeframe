@@ -11,7 +11,7 @@ from .config import Attention, Config, Instance, Panel, Sensor
 from .ha import parse_time, to_float
 from .lights import lights_view
 from .people import people_view
-from .weather import weather_view
+from .weather import sun_times, weather_view
 
 OFFLINE_STATES = {"unavailable", "unknown"}
 
@@ -49,6 +49,21 @@ class InstanceState:
         if self.error:
             return "error"
         return "online" if self.last_ok else "connecting"
+
+
+def humidity_of(sensor: Sensor, live: InstanceState) -> str | None:
+    """The humidity that belongs to a sensor: the one named in the config, or
+    else the one its own device reports, as most thermometers do."""
+    if sensor.humidity:
+        return sensor.humidity
+    device = live.devices.get(sensor.entity)
+    if not device:
+        return None
+    return next((
+        entity for entity in sorted(live.devices)
+        if live.devices[entity] == device and entity != sensor.entity and entity.startswith("sensor.")
+        and _attrs(live.states.get(entity)).get("device_class") == "humidity"
+    ), None)
 
 
 def resolve_panels(config: Config, live: dict[str, InstanceState]) -> list[tuple[str, Panel]]:
@@ -182,6 +197,7 @@ def build_dashboard(config: Config, live: dict[str, InstanceState]) -> dict:
 
     return {
         "demo": config.demo,
+        "home": config.home.id,
         "poll_interval": config.poll_interval,
         "stale_after": config.stale_after * 60,
         "instances": [
@@ -195,6 +211,8 @@ def build_dashboard(config: Config, live: dict[str, InstanceState]) -> dict:
                 "age": time.time() - (live[instance.id].last_ok or live[instance.id].created),
                 "entities": len(live[instance.id].states),
                 "push": live[instance.id].push,
+                "time_zone": live[instance.id].time_zone,
+                "sun": sun_times(live[instance.id].states, live[instance.id].time_zone),
             }
             for instance in config.instances
         ],
@@ -280,6 +298,13 @@ def _sensor_view(instance: Instance, sensor: Sensor, live: InstanceState, attent
             "unit": _attrs(humidity_state).get("unit_of_measurement") or "%",
         }
 
+    # The detail chart also draws the humidity a card doesn't show.
+    charted = humidity_of(sensor, live)
+    chart_humidity = charted and {
+        "key": f"{instance.id}:{charted}",
+        "unit": _attrs(live.states.get(charted)).get("unit_of_measurement") or "%",
+    }
+
     climate = None
     if sensor.climate:
         climate_state = live.states.get(sensor.climate)
@@ -294,6 +319,7 @@ def _sensor_view(instance: Instance, sensor: Sensor, live: InstanceState, attent
         "key": f"{instance.id}:{sensor.entity}",
         "entity": sensor.entity,
         "humidity": humidity,
+        "chart_humidity": chart_humidity or None,
         "climate": climate,
         "name": sensor.name or _display_name(state, sensor.entity, strip_kind=True),
         "value": value,
