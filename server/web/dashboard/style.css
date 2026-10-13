@@ -78,10 +78,10 @@ button { font: inherit; color: inherit; }
 @media (max-width: 1040px) {
   .app {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "top" "banner" "side" "main";
+    /* One column: the houses first, attention and batteries below them. */
+    grid-template-areas: "top" "banner" "main" "side";
     padding: 16px;
   }
-  .side { position: static; max-height: none; }
 }
 
 /* ── HUD frame ──────────────────────────────────────────── */
@@ -539,6 +539,13 @@ body:not(.charts) .chart { display: none; }
   max-height: calc(var(--viewport-height, 100vh) - var(--side-top, 12px) - 12px);
 }
 .side > .panels { display: contents; }
+/* In one column the side column is just more page: nothing sticks, nothing
+   is capped, and the lists are as long as they need to be. (After the rule
+   above on purpose, or that one would win.) */
+@media (max-width: 1040px) {
+  .side { position: static; max-height: none; }
+  .side .attention-list, .panel.batteries .battery-grid { overflow-y: visible; }
+}
 
 .attention {
   --tone: var(--ok);
