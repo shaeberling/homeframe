@@ -2,11 +2,12 @@
 
 One core on top of one or more Home Assistant instances, shown two ways:
 
+- **The web dashboard** — a dark, live, at-a-glance view of every house:
+  weather, people, temperature gauges with history, lights, doors and motion,
+  batteries, and an **Attention** column.
 - **The frame** — a dense page for the e-paper panel, rendered in headless
   Chromium, thresholded to pure black and white, and packed into the
   81600-byte frame the panel expects.
-- **The web dashboard** — a dark, live, at-a-glance view of every house:
-  temperature gauges, history charts, and an **Attention** column.
 
 ## Run
 
