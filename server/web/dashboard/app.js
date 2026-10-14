@@ -518,12 +518,7 @@ function buildPanels(panels) {
           h('div', { class: 'chart-plot' })),
       ]
       : [h('p', { class: 'placeholder' })];
-    // Up to four gauges don't need a full row.
-    const small = panel.sensors.length > 0 && panel.sensors.length <= 4;
-    return h('section', {
-      class: 'panel frame', 'data-key': panel.key,
-      style: small ? `flex-basis: ${panel.sensors.length * 176 + 28}px` : null,
-    },
+    return h('section', { class: 'panel frame', 'data-key': panel.key },
       h('header', { class: 'panel-head' },
         h('h2', {}, panel.title),
         h('span', { class: 'tag' }, panel.instance),
