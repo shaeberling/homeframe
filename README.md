@@ -5,6 +5,10 @@ Python server keeps every house's state in memory, decides what needs a look,
 and shows it on a wall screen in the browser — and, as a second outlet, on a
 13.3" e-paper frame.
 
+![The dashboard on a 4K screen: weather and people for two houses, temperature gauges, lights by floor, doors and motion, attention and batteries](docs/images/dashboard.png)
+
+<sub>Two houses from the built-in demo (`--demo`): made-up names, the scale of a real setup.</sub>
+
 ```
 homeframe/
 ├── server/     The core: Home Assistant client, web dashboard, frame renderer (Python)
@@ -36,6 +40,11 @@ Updates are pushed: the server keeps a WebSocket open to each Home Assistant
 and passes changes to the browser over server-sent events, so a door opening
 shows within a second. Polling stays on as a fallback, and the top bar shows
 which houses are live.
+
+Click a gauge for its history: temperature and humidity, when the sun was up,
+and for a house elsewhere both its own time and the time at home.
+
+![A sensor's detail chart: temperature and humidity over 24 hours, a daylight band, and two rows of times](docs/images/detail-chart.png)
 
 ## How it works
 
@@ -70,14 +79,17 @@ cp config.example.yaml config.yaml       # your Home Assistant URLs + tokens
 .venv/bin/python -m homeframe            # the real thing
 ```
 
-Configuration, routes, the attention rules and running it as a systemd
-service are in [server/README.md](server/README.md).
+A step-by-step guide for a new setup, config section by section, is in
+[docs/setup.md](docs/setup.md). Routes, the attention rules and the server's
+internals are in [server/README.md](server/README.md).
 
 ## The e-paper frame
 
 An ESP32 behind an A4-sized e-ink panel shows the home house at a glance —
 clock, weather, starred calendar events, to-dos, temperatures, open doors and
 attention items — and updates quietly in place.
+
+<img src="docs/images/frame.png" alt="The e-paper frame: clock, weather, coming up, to-dos, temperatures and attention items, in pure black and white" width="640">
 
 The server renders the frame as an HTML page in headless Chromium, turns it
 into pure black and white, and packs it into the 81600 bytes the panel's

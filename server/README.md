@@ -242,9 +242,11 @@ explicitly avoids the whole question.
 homeframe/app.py           entry point, HTTP routes
 homeframe/config.py        config.yaml loading + validation
 homeframe/ha.py            Home Assistant REST + WebSocket client
-homeframe/hub.py           polling, state cache, history fetch + downsampling
-homeframe/dashboard.py     panels + attention rules
+homeframe/hub.py           polling + push updates, state cache, history
+homeframe/dashboard.py     panels, doors and motion, batteries, attention rules
 homeframe/weather.py       weather entity selection + forecast shaping
+homeframe/people.py        where people are: zones, known places, addresses
+homeframe/lights.py        lights by floor and room
 homeframe/services.py      starred calendar events, to-do items
 homeframe/demo.py          synthetic instances for --demo
 homeframe/frame/view.py    what the frame shows, from the same state
@@ -254,5 +256,5 @@ homeframe/frame/still.py   static images for the panel
 homeframe/frame/device.py  telemetry the device reports with each fetch
 web/dashboard/             the web dashboard (plain HTML/CSS/JS, no build step)
 web/frame/                 the frame page
-tests/                     pytest: packing, calendar and to-do filtering
+tests/                     pytest
 ```
