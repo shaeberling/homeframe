@@ -959,14 +959,15 @@ function drawDetail() {
 
 const ACTIVITY_LABEL = { door: ['Open', 'Closed'], shade: ['Open', 'Closed'], motion: ['Motion', 'Clear'], other: ['On', 'Off'] };
 
-// How long ago the last change was, as an upper bound that reads at a glance:
-// "< 12 minutes", "< 5 hours", and from a day on "< 3 days".
+// How long ago the last change was, in whole units that read at a glance:
+// "now", "12 minutes", "5 hours", and from a day on "3 days".
 function activityAge(item, now) {
   if (item.since == null) return '';
   const span = Math.max(0, now - item.since);
+  if (span < 60) return 'now';
   const [size, unit] = span < 3600 ? [60, 'minute'] : span < 86400 ? [3600, 'hour'] : [86400, 'day'];
-  const count = Math.floor(span / size) + 1;
-  return `< ${count} ${unit}${count === 1 ? '' : 's'}`;
+  const count = Math.floor(span / size);
+  return `${count} ${unit}${count === 1 ? '' : 's'}`;
 }
 
 // How strongly a sensor that has gone quiet still glows: full the moment it
