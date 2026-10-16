@@ -30,6 +30,25 @@ class Lights:
 
 
 @dataclass
+class Circuit:
+    entity: str  # a power sensor
+    name: str | None = None
+    # A sensor whose state is shown next to the circuit, e.g. an EV charger's status.
+    status: str | None = None
+
+
+@dataclass
+class Power:
+    """What a house draws: a total power sensor and the circuits that make it up."""
+
+    # The mains power sensor; None adds up the circuits instead.
+    total: str | None = None
+    # Energy used today (kWh), shown next to the total.
+    energy: str | None = None
+    circuits: list[Circuit] = field(default_factory=list)
+
+
+@dataclass
 class Instance:
     id: str
     name: str
@@ -47,6 +66,8 @@ class Instance:
     activity: list[ActivityItem] | None = None
     # None leaves the lights panel out.
     lights: Lights | None = None
+    # None leaves the power panel out.
+    power: Power | None = None
 
 
 @dataclass
@@ -244,6 +265,32 @@ def _instance(raw, n: int) -> Instance:
             if "activity" in raw else None
         ),
         lights=_lights(raw.get("lights"), f"{where}.lights"),
+        power=_power(raw.get("power"), f"{where}.power"),
+    )
+
+
+def _power(raw, where: str) -> Power | None:
+    if raw is None or raw is False:
+        return None
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{where}: expected a mapping with total, energy and circuits")
+    circuits = []
+    for m, item in enumerate(_list(raw, "circuits", where), 1):
+        if isinstance(item, str):
+            item = {"entity": item}
+        if not isinstance(item, dict) or not item.get("entity"):
+            raise ConfigError(f"{where}.circuits[{m}]: expected an entity id or a mapping with an entity key")
+        circuits.append(Circuit(
+            entity=str(item["entity"]).strip(),
+            name=str(item["name"]) if item.get("name") else None,
+            status=str(item["status"]).strip() if item.get("status") else None,
+        ))
+    if not raw.get("total") and not circuits:
+        raise ConfigError(f"{where}: give a total power sensor, circuits, or both")
+    return Power(
+        total=str(raw["total"]).strip() if raw.get("total") else None,
+        energy=str(raw["energy"]).strip() if raw.get("energy") else None,
+        circuits=circuits,
     )
 
 

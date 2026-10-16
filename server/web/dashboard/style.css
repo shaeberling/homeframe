@@ -470,6 +470,32 @@ button { font: inherit; color: inherit; }
 .battery-icon { display: block; width: 13px; height: 13px; }
 .battery-icon svg { display: block; width: 100%; height: 100%; }
 .panel.batteries .battery-meter { height: 2px; }
+
+/* ── Power ──────────────────────────────────────────────── */
+
+/* Fixed height: it is the batteries above that give way and scroll. */
+.panel.power { flex: 0 0 auto; padding: 10px 12px; }
+.panel.power .panel-head { margin-bottom: 4px; }
+.panel.power.stale :is(.power-total, .power-grid) { opacity: 0.45; }
+.power-total { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.power-now { font: 600 26px/1 var(--mono); color: var(--accent); font-variant-numeric: tabular-nums; text-shadow: 0 0 12px rgba(53, 208, 255, 0.35); }
+.power-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; }
+.power-circuit {
+  --tone: var(--accent);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 6px;
+  align-items: baseline;
+}
+.power-circuit[data-active] { --tone: var(--ok); }
+.power-circuit[data-offline] { --tone: var(--muted); }
+.power-name { font-size: 12px; line-height: 1.2; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.power-value { font: 500 11px/1 var(--mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+.power-circuit[data-offline] .power-value { color: var(--muted); }
+.power-status { grid-column: 1 / -1; font: 600 9px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--tone); }
+.power-circuit:not([data-active]) .power-status { color: var(--muted); }
+.power-meter { grid-column: 1 / -1; height: 2px; border-radius: 1px; background: var(--idle-dim); overflow: hidden; }
+.power-meter i { display: block; height: 100%; border-radius: 1px; background: var(--tone); box-shadow: 0 0 6px var(--tone); }
 .panel.batteries .battery[data-status]::after { inset: -3px -5px; }
 
 /* ── Doors & motion ─────────────────────────────────────── */

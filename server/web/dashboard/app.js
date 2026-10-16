@@ -59,6 +59,7 @@ const state = {
   instances: null,
   weather: null,
   batteries: null,
+  power: null,
   lights: null,
   people: null,
   stream: false,
@@ -598,6 +599,46 @@ function renderBatteries(panels) {
           h('span', { class: 'battery-name' }, item.name),
           h('span', { class: 'battery-value' }, value),
           h('span', { class: 'battery-meter' }, h('i', { style: `width:${clamp01(width / 100) * 100}%` })));
+      })));
+  }));
+}
+
+// ── Power ────────────────────────────────────────────────────
+
+// "462 W", "1.03 kW": watts read as they would on the meter.
+function formatWatts(watts) {
+  if (watts == null) return '—';
+  if (Math.abs(watts) < 1000) return `${Math.round(watts)} W`;
+  return `${(watts / 1000).toFixed(watts < 10000 ? 2 : 1)} kW`;
+}
+
+function renderPower(panels) {
+  const signature = JSON.stringify(panels);
+  if (signature === state.power) return;
+  state.power = signature;
+  $('#power').replaceChildren(...panels.map((panel) => {
+    const total = panel.total;
+    // Each circuit's bar is its share of the house; without a total, of the largest circuit.
+    const scale = total || Math.max(0, ...panel.circuits.map((c) => c.watts ?? 0)) || 1;
+    return h('section', { class: `panel frame power${panel.stale ? ' stale' : ''}` },
+      h('header', { class: 'panel-head' },
+        h('h2', {}, 'Power'),
+        h('span', { class: 'tag' }, panel.instance),
+        h('span', { class: 'label panel-note' }, panel.today != null ? `${panel.today.toFixed(1)} kWh today` : '')),
+      h('div', { class: 'power-total' },
+        h('span', { class: 'power-now' }, formatWatts(total)),
+        h('span', { class: 'label' }, 'now')),
+      h('ul', { class: 'power-grid' }, ...panel.circuits.map((circuit) => {
+        const status = circuit.status ? circuit.status.toLowerCase() : null;
+        return h('li', {
+          class: 'power-circuit', 'data-offline': circuit.offline ? '' : null,
+          'data-active': status === 'charging' ? '' : null,
+          title: [circuit.entity, circuit.status].filter(Boolean).join(' · '),
+        },
+          h('span', { class: 'power-name' }, circuit.name),
+          h('span', { class: 'power-value' }, formatWatts(circuit.watts)),
+          status ? h('span', { class: 'power-status' }, circuit.status) : null,
+          h('span', { class: 'power-meter' }, h('i', { style: `width:${clamp01((circuit.watts ?? 0) / scale) * 100}%` })));
       })));
   }));
 }
@@ -1282,6 +1323,7 @@ function render() {
   renderActivity(dash.activity || []);
   renderLights(dash.lights || []);
   renderBatteries(dash.batteries || []);
+  renderPower(dash.power || []);
   renderAttention(dash.attention);
   fitSide();
   if ($('#detail').open) renderDetail();

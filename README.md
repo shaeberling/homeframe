@@ -32,6 +32,8 @@ layout magnified; phones get it stacked):
   brightness.
 - **Doors, motion and shades** — most recent first, blinking while active and
   fading from green over the day after.
+- **Power** — what the house draws now and today, circuit by circuit, from
+  an energy monitor in the electrical panel.
 - **Attention** — everything that needs a look across all houses: cold rooms,
   offline devices, low batteries, an unreachable Home Assistant.
 - **Batteries** of every device, emptiest first.

@@ -22,7 +22,8 @@ names and coordinates, time zones.
 
 - `server/` — Python 3.11+, FastAPI. One process: Home Assistant client
   (`ha.py`), state and push updates (`hub.py`), the dashboard's data
-  (`dashboard.py`, `weather.py`, `people.py`, `lights.py`, `services.py`),
+  (`dashboard.py`, `weather.py`, `people.py`, `lights.py`, `power.py`,
+  `services.py`),
   the e-paper frame (`frame/`), config parsing (`config.py`), synthetic data
   (`demo.py`).
 - `server/web/dashboard/` — the web dashboard: plain HTML, CSS and JS

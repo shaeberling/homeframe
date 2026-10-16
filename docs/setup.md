@@ -138,6 +138,26 @@ when they poll, and can miss a door that opens and closes in between.
 Lights are grouped by Home Assistant's **floors** and **areas**, so assign
 those in Home Assistant (Settings → Areas, labels & zones) for a tidy panel.
 
+### Power: `power` (per instance)
+
+What the house draws right now, from an energy monitor in the electrical
+panel (an Emporia Vue, a Shelly EM, an IoTaWatt): the mains in large type,
+energy used today beside it, and a row per circuit with its share.
+
+```yaml
+    power:
+      total: sensor.mains_power             # W or kW
+      energy: sensor.mains_energy_today     # kWh, optional
+      circuits:
+        - sensor.heat_pump_power
+        - entity: sensor.ev_charger_power
+          name: EV charger
+          status: sensor.ev_charger_status  # shown under the name, e.g. "Charging"
+```
+
+Without `total`, the circuits are added up instead. A cloud-polled monitor
+updates about once a minute.
+
 ### Batteries: `batteries` (per instance)
 
 Without the key, every battery sensor is watched and a low one raises

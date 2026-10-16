@@ -4,7 +4,7 @@ One core on top of one or more Home Assistant instances, shown two ways:
 
 - **The web dashboard** — a dark, live, at-a-glance view of every house:
   weather, people, temperature gauges with history, lights, doors and motion,
-  batteries, and an **Attention** column.
+  power, batteries, and an **Attention** column.
 - **The frame** — a dense page for the e-paper panel, rendered in headless
   Chromium, thresholded to pure black and white, and packed into the
   81600-byte frame the panel expects.
@@ -63,6 +63,9 @@ See `config.example.yaml` for every option. In short:
   box per light with its state, colour and when it last switched, by floor and
   room as Home Assistant has them. Every `light.*` entity is shown, minus an
   `exclude` list, plus an `include` list for lamps that are really switches.
+- `power` (per instance) — a Power module under the batteries: the house's
+  power draw now, energy used today, and a row per circuit with its share,
+  from an energy monitor's sensors.
 - `panels` — which temperature sensors to show, grouped as you like. An
   instance without a panel shows all of its temperature sensors.
 - `attention` — thresholds for what needs a look, plus `watch` / `ignore`
@@ -247,6 +250,7 @@ homeframe/dashboard.py     panels, doors and motion, batteries, attention rules
 homeframe/weather.py       weather entity selection + forecast shaping
 homeframe/people.py        where people are: zones, known places, addresses
 homeframe/lights.py        lights by floor and room
+homeframe/power.py         power draw: the mains and its circuits
 homeframe/services.py      starred calendar events, to-do items
 homeframe/demo.py          synthetic instances for --demo
 homeframe/frame/view.py    what the frame shows, from the same state

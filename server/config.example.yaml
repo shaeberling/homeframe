@@ -36,6 +36,14 @@ instances:
     #                                      # lists them too, new ones included;
     #                                      # `batteries: []` shows the panel empty
     #                                      # and watches none
+    # power:                               # a Power panel: what the house draws now,
+    #   total: sensor.mains_power          # from an energy monitor (W or kW); without
+    #   energy: sensor.mains_energy_today  # a total the circuits are added up; energy
+    #   circuits:                          # used today (kWh) goes next to the total
+    #     - sensor.heat_pump_power         # one row per circuit, with its share of
+    #     - entity: sensor.ev_charger_power  # the total
+    #       name: EV charger
+    #       status: sensor.ev_charger_status  # shown under the circuit's name
 
   - id: cabin
     name: Cabin

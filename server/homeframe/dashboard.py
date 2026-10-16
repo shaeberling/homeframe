@@ -11,6 +11,7 @@ from .config import Attention, Config, Instance, Panel, Sensor
 from .ha import parse_time, to_float
 from .lights import lights_view
 from .people import people_view
+from .power import power_view
 from .weather import sun_times, weather_view
 
 OFFLINE_STATES = {"unavailable", "unknown"}
@@ -232,6 +233,10 @@ def build_dashboard(config: Config, live: dict[str, InstanceState]) -> dict:
         "lights": [
             lights_view(instance, live[instance.id])
             for instance in config.instances if instance.lights is not None
+        ],
+        "power": [
+            power_view(instance, live[instance.id])
+            for instance in config.instances if instance.power is not None
         ],
         "batteries": [
             _battery_panel(instance, live[instance.id], config.attention, label)

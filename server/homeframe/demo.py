@@ -13,7 +13,7 @@ import zlib
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from .config import ActivityItem, Attention, Config, Instance, Lights, Panel, Person, Place, Sensor
+from .config import ActivityItem, Attention, Circuit, Config, Instance, Lights, Panel, Person, Place, Power, Sensor
 from .ha import Series
 
 HOUR = 3600.0
@@ -99,6 +99,16 @@ WEATHER = {
 }
 
 # (entity, friendly name, device class, state, hours since the last change)
+# What the family home draws: (power sensor, name, watts, swing, status sensor).
+# The car is charging; the rest wanders about its usual draw.
+CIRCUITS = [
+    ("sensor.heat_pump_power", "Heat pump", 850, 400, None),
+    ("sensor.ev_charger_power", "EV charger", 7200, 0, "sensor.ev_charger_status"),
+    ("sensor.kitchen_circuit_power", "Kitchen", 240, 200, None),
+    ("sensor.workshop_circuit_power", "Workshop", 120, 90, None),
+    ("sensor.other_power", "Everything else", 380, 120, None),
+]
+
 ACTIVITY = {
     "home": [
         ("binary_sensor.front_door", "Front door", "door", "off", 0.4),
@@ -198,6 +208,11 @@ def demo_config() -> Config:
                 activity=[ActivityItem(entity) for entity, *_ in ACTIVITY["home"]],
                 lights=Lights(),
                 all_batteries=True,
+                power=Power(
+                    total="sensor.house_power",
+                    energy="sensor.house_energy_today",
+                    circuits=[Circuit(entity, name, status) for entity, name, _w, _s, status in CIRCUITS],
+                ),
             ),
             Instance(
                 id="cabin", name="Lakeside", url="demo://cabin", token="demo",
@@ -229,6 +244,30 @@ class DemoClient:
 
     async def close(self) -> None:
         pass
+
+    def _power(self, now: float) -> list[dict]:
+        def reading(entity, value, unit, name):
+            return {
+                "entity_id": entity, "state": f"{value:.1f}",
+                "attributes": {"friendly_name": name, "unit_of_measurement": unit},
+                "last_changed": _iso(now), "last_updated": _iso(now),
+            }
+
+        states, total = [], 0.0
+        for n, (entity, name, watts, swing, status) in enumerate(CIRCUITS):
+            value = max(0.0, watts + swing * math.sin(now / 600 + n * 1.7))
+            total += value
+            states.append(reading(entity, value, "W", name))
+            if status:
+                states.append({
+                    "entity_id": status, "state": "Charging", "attributes": {"friendly_name": f"{name} status"},
+                    "last_changed": _iso(self._started), "last_updated": _iso(self._started),
+                })
+        states.append(reading("sensor.house_power", total, "W", "House power"))
+        midnight = datetime.now(ZoneInfo(WEATHER["home"][0])).replace(hour=0, minute=0, second=0, microsecond=0)
+        hours = (now - midnight.timestamp()) / HOUR
+        states.append(reading("sensor.house_energy_today", 1.9 * hours, "kWh", "House energy today"))
+        return states
 
     async def time_zone(self) -> str:
         return WEATHER[self.instance.id][0]
@@ -347,6 +386,8 @@ class DemoClient:
                 "entity_id": "todo.household", "state": str(len(TODOS)),
                 "attributes": {"friendly_name": "Household"}, "last_changed": started, "last_updated": started,
             })
+        if self.instance.id == "home":
+            states += self._power(now)
         zone, condition, temperature, _days = WEATHER[self.instance.id]
         tomorrow = datetime.now(ZoneInfo(zone)).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
         states.append({
