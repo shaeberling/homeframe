@@ -1,5 +1,5 @@
 from homeframe.config import Attention, Instance, Sensor
-from homeframe.dashboard import InstanceState, _battery_panel, humidity_of
+from homeframe.dashboard import InstanceState, _battery_panel, humidity_of, last_real_change
 
 
 def battery(entity, value, name):
@@ -42,3 +42,10 @@ def test_a_sensor_gets_the_humidity_of_its_own_device_unless_one_is_named():
     assert humidity_of(Sensor(entity="sensor.hall_temperature"), live) == "sensor.hall_humidity"
     assert humidity_of(Sensor(entity="sensor.attic_temperature"), live) is None
     assert humidity_of(Sensor(entity="sensor.attic_temperature", humidity="sensor.attic_humidity"), live) == "sensor.attic_humidity"
+
+
+def test_the_last_real_change_skips_going_offline_and_back():
+    assert last_real_change([(1, "off"), (2, "on"), (3, "off"), (4, "unavailable"), (5, "off")]) == 3
+    assert last_real_change([(1, "closed"), (2, "opening"), (3, "open"), (4, "unknown"), (5, "open")]) == 2
+    assert last_real_change([(1, "off"), (2, "unavailable"), (3, "on")]) == 3
+    assert last_real_change([(1, "unavailable")]) is None

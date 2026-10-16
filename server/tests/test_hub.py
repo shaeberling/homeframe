@@ -56,3 +56,63 @@ def test_pushed_changes_wait_for_the_first_poll():
         assert hub.live("home").states == {}
 
     asyncio.run(run())
+
+
+class Recorded:
+    """A client whose history says the door last closed at 1000, before a restart at 5000."""
+
+    def __init__(self):
+        self.asked = 0
+
+    async def state_changes(self, entity_id, start, end):
+        self.asked += 1
+        return [(500.0, "on"), (1000.0, "off"), (5000.0, "unavailable"), (5001.0, "off")]
+
+
+def test_a_restart_of_home_assistant_does_not_count_as_a_door_change():
+    async def run():
+        hub = Hub(demo_config())
+        home = hub.config.instance("home")
+        live = hub.live("home")
+        restarted = "1970-01-01T01:23:21+00:00"  # 5001 seconds
+        live.last_ok = 1.0
+        live.states = {"binary_sensor.front_door": {**state("binary_sensor.front_door", "off", restarted), "last_changed": restarted}}
+        client = hub._clients["home"] = Recorded()
+
+        await hub._refresh_activity_times(home)
+        item = next(i for p in hub.dashboard()["activity"] for i in p["items"] if i["entity"] == "binary_sensor.front_door")
+        assert item["since"] == 1000.0
+
+        await hub._refresh_activity_times(home)
+        assert client.asked == 1  # once per change, not once per poll
+
+    asyncio.run(run())
+
+
+class Purged:
+    """A client whose history only reaches back to a restart at 5000."""
+
+    async def state_changes(self, entity_id, start, end):
+        return [(5000.0, "unavailable"), (5001.0, "off")]
+
+
+def test_what_was_seen_before_a_restart_outlasts_the_purged_history():
+    async def run():
+        hub = Hub(demo_config())
+        home = hub.config.instance("home")
+        live = hub.live("home")
+        restarted = "1970-01-01T01:23:21+00:00"  # 5001 seconds
+        live.last_ok = 1.0
+        live.states = {"binary_sensor.front_door": {**state("binary_sensor.front_door", "off", restarted), "last_changed": restarted}}
+        live.changed["binary_sensor.front_door"] = ("before the restart", 1000.0, "off")
+        hub._clients["home"] = Purged()
+
+        await hub._refresh_activity_times(home)
+        assert live.changed["binary_sensor.front_door"][1] == 1000.0
+
+        # Without anything seen before, the restart is the best there is.
+        live.changed.clear()
+        await hub._refresh_activity_times(home)
+        assert live.changed["binary_sensor.front_door"][1] == 5001.0
+
+    asyncio.run(run())

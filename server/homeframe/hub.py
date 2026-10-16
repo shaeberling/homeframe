@@ -9,7 +9,10 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from .config import Config, Instance
-from .dashboard import InstanceState, activity_item, activity_state, build_dashboard, humidity_of, resolve_panels
+from .dashboard import (
+    OFFLINE_STATES, InstanceState, activity_item, activity_state, build_dashboard, humidity_of, last_real_change,
+    resolve_panels,
+)
 from .demo import DemoClient
 from .ha import HAClient, Series, describe_error, parse_time
 from .lights import light_entities
@@ -29,6 +32,8 @@ REGISTRY_RETRY = 5 * 60
 # How far back to ask for door/motion events; Home Assistant returns what it still has.
 EVENT_DAYS = 30
 EVENT_LIMIT = 100
+# A change younger than this may not be in the recorder's history yet.
+CHANGE_SETTLE = 30
 AGENDA_TTL = 5 * 60
 TODO_TTL = 5 * 60
 SERVICE_RETRY = 60
@@ -91,6 +96,7 @@ class Hub:
                     log.warning("%s: %s", instance.name, message)
                 live.error = message
             else:
+                await self._refresh_activity_times(instance)
                 await self._refresh_time_zone(instance)
                 await self._refresh_devices(instance)
                 await self._refresh_rooms(instance)
@@ -162,6 +168,46 @@ class Hub:
 
     def live(self, instance_id: str) -> InstanceState:
         return self._live[instance_id]
+
+    async def _refresh_activity_times(self, instance: Instance) -> None:
+        """Look up when each door and motion sensor really last changed, once
+        per change: after a restart, Home Assistant reports its restart time."""
+        live = self._live[instance.id]
+        now = time.time()
+        if now < live.changed_retry:
+            return
+        due = []
+        for item in instance.activity or []:
+            state = live.states.get(item.entity) or {}
+            stamp = state.get("last_changed")
+            changed = parse_time(stamp)
+            if changed is None or state.get("state") in OFFLINE_STATES:
+                continue
+            if (live.changed.get(item.entity) or (None,))[0] == stamp or now - changed < CHANGE_SETTLE:
+                continue
+            due.append((item.entity, stamp, changed))
+        if not due:
+            return
+
+        end = datetime.now(timezone.utc)
+        client = self._clients[instance.id]
+        results = await asyncio.gather(
+            *(client.state_changes(entity, end - timedelta(days=EVENT_DAYS), end) for entity, _, _ in due),
+            return_exceptions=True,
+        )
+        for (entity, stamp, changed), result in zip(due, results):
+            if isinstance(result, Exception):
+                live.changed_retry = now + REGISTRY_RETRY
+                continue
+            # What we knew before goes first: Home Assistant only keeps about ten
+            # days of history, and a door can stay shut for longer than that.
+            known = live.changed.get(entity)
+            if known:
+                result = [(known[1], known[2])] + [change for change in result if change[0] > known[1]]
+            since = last_real_change(result)
+            # Without history (purged, or not recorded) Home Assistant's own time stands.
+            since = min(since, changed) if since else changed
+            live.changed[entity] = (stamp, since, activity_state(live.states[entity].get("state")))
 
     async def _refresh_time_zone(self, instance: Instance) -> None:
         live = self._live[instance.id]

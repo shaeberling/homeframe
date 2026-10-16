@@ -401,7 +401,7 @@ class DemoClient:
         ]
 
     async def state_changes(self, entity_id: str, start: datetime, end: datetime) -> list[tuple[float, str]]:
-        hours_ago = next(hours for entity, *_rest, hours in ACTIVITY[self.instance.id] if entity == entity_id)
+        value, hours_ago = next((value, hours) for entity, *_rest, value, hours in ACTIVITY[self.instance.id] if entity == entity_id)
         last = self._started - hours_ago * HOUR
         on, off = ("open", "closed") if entity_id.startswith("cover.") else ("on", "off")
         # A handful of earlier open/close pairs leading up to the current state.
@@ -409,6 +409,10 @@ class DemoClient:
         for n in range(4, 0, -1):
             opened = last - n * 19.3 * HOUR
             changes += [(opened, on), (opened + 140 * n, off)]
+        # Then the change to the current state: a door now closed was open just before.
+        if value != on:
+            changes.append((last - 300, on))
+        changes.append((last, value))
         return [c for c in changes if c[0] >= start.timestamp()]
 
     async def entity_devices(self) -> dict[str, str]:

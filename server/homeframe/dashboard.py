@@ -43,6 +43,12 @@ class InstanceState:
     # entity id → {"room", "floor", "level"}, from Home Assistant's areas and floors
     rooms: dict[str, dict] = field(default_factory=dict)
     rooms_at: float = 0
+    # door/motion entity id → (its last_changed, when its state really began, that
+    # state). A restart of Home Assistant stamps every entity with the restart
+    # time; the recorded history, or what we saw before, still knows when a
+    # door last really moved.
+    changed: dict[str, tuple[str, float, str]] = field(default_factory=dict)
+    changed_retry: float = 0
 
     @property
     def status(self) -> str:
@@ -375,6 +381,25 @@ def activity_state(raw: str | None) -> str | None:
     return COVER_STATES.get(raw, raw)
 
 
+def last_real_change(changes: list[tuple[float, str]]) -> float | None:
+    """When the current state of a door or motion sensor began, from its recorded
+    changes, oldest first. Going offline and coming back as before is no change."""
+    since = current = None
+    for when, raw in changes:
+        state = activity_state(raw)
+        if state is None or state in OFFLINE_STATES:
+            continue
+        if state != current:
+            since, current = when, state
+    return since
+
+
+def _activity_since(live: InstanceState, entity_id: str, state: dict | None) -> float | None:
+    stamp = (state or {}).get("last_changed")
+    known = live.changed.get(entity_id)
+    return known[1] if known and known[0] == stamp else parse_time(stamp)
+
+
 def activity_item(instance: Instance, live: InstanceState, entity_id: str) -> dict | None:
     return next((i for i in _activity_panel(instance, live)["items"] if i["entity"] == entity_id), None)
 
@@ -398,7 +423,7 @@ def _activity_panel(instance: Instance, live: InstanceState) -> dict:
             "kind": next((kind for kind, classes in ACTIVITY_KINDS.items() if device_class in classes), "other"),
             "active": activity_state(raw) == "on" if status == "ok" else None,
             "status": status,
-            "since": parse_time(state.get("last_changed")) if state else None,
+            "since": _activity_since(live, entry.entity, state),
         })
     return {
         "key": f"activity-{instance.id}",
