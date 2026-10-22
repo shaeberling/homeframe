@@ -28,7 +28,8 @@ names and coordinates, time zones.
   (`demo.py`).
 - `server/web/dashboard/` — the web dashboard: plain HTML, CSS and JS
   modules, no build step, no framework. Static files are served as they are on
-  disk; a browser reload picks up changes without a server restart.
+  disk; open dashboards reload themselves when one is saved, and after a
+  server restart (`/api/stream` sends a `version` event).
 - `server/web/frame/` — the 960×680 page rendered for the e-paper panel.
 - `firmware/` — ESP32 (PlatformIO). Its protocol with the server
   (`/frame.bin`, `ETag`, `X-Homeframe-*` headers) is fixed; don't change one

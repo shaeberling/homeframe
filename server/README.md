@@ -42,7 +42,7 @@ the frame only ever talk to this server.
 | `/frame.bin` | What the device fetches: 81600 raw bytes, `ETag` + `304`. |
 | `/api/frame` | The JSON the frame renders from. |
 | `/api/dashboard`, `/api/history`, `/api/events` | The JSON behind the web dashboard. |
-| `/api/stream` | Server-sent events: a `change` whenever a door or motion sensor changes. |
+| `/api/stream` | Server-sent events: a `change` whenever a door or motion sensor changes, and the server's `version`. |
 | `/healthz` | Liveness. |
 
 Append `?fresh=1` to `/preview.png` or `/frame.bin` to bypass the render cache.
@@ -133,6 +133,10 @@ each Home Assistant, which pushes every state change, and tells open browsers
 over `/api/stream` (server-sent events) the moment a door or motion sensor
 changes. Polling (`server.poll_interval`, and the browser's own five-second
 refresh) stays as the fallback when either connection drops.
+
+Open dashboards reload themselves when the server restarts (after a config or
+code change) or a file under `web/dashboard/` is saved: the stream sends a
+`version` on connecting and again when it changes.
 
 Click a gauge to open that sensor's history as a large chart (24H / 7D / 30D;
 `←` / `→` switch, `Esc` closes). Ranges up to ten days come from Home

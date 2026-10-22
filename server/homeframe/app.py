@@ -11,7 +11,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
+import json
 import logging
+import secrets
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -36,6 +39,21 @@ WEB = ROOT / "web"
 log = logging.getLogger("homeframe")
 
 STREAM_KEEPALIVE = 20
+# How often an open stream looks for edits to the dashboard's files.
+WEB_CHECK = 1.0
+
+
+def files_fingerprint(directory: Path) -> str:
+    """Changes whenever a file under the directory is added, removed or edited."""
+    stamps = []
+    for path in directory.rglob("*"):
+        try:
+            stat = path.stat()
+        except OSError:  # removed while we looked
+            continue
+        if path.is_file():
+            stamps.append((str(path.relative_to(directory)), stat.st_mtime_ns, stat.st_size))
+    return hashlib.sha1(repr(sorted(stamps)).encode()).hexdigest()[:12]
 
 
 class NoCacheStatic(StaticFiles):
@@ -57,6 +75,12 @@ def frame_response(request: Request, packed: Packed) -> Response:
 
 def create_app(config: Config, port: int) -> FastAPI:
     hub = Hub(config)
+    # A new process (new config or code) or an edited dashboard file makes a
+    # new version, and open dashboards reload themselves to pick it up.
+    started = secrets.token_hex(4)
+
+    def version() -> str:
+        return f"{started}-{files_fingerprint(WEB / 'dashboard')}"
     # The renderer is a browser on this machine, whatever address we listen on.
     loopback = config.host if config.host not in ("0.0.0.0", "::", "") else "127.0.0.1"
     renderer = Renderer(config.frame, f"http://{loopback}:{port}/frame")
@@ -88,20 +112,36 @@ def create_app(config: Config, port: int) -> FastAPI:
         return result
 
     # Server-sent events: one "change" the moment a door or motion sensor
-    # changes, so the browser refreshes then instead of on its next poll.
+    # changes, so the browser refreshes then instead of on its next poll, and
+    # the server's "version" on connecting and whenever it changes.
     @app.get("/api/stream")
     async def stream():
         async def events():
             watcher = hub.watch()
             try:
+                sent = pending = version()
                 yield "retry: 3000\n\n"
+                yield f"event: version\ndata: {json.dumps(sent)}\n\n"
+                idle = 0.0
                 while not hub.closing:
                     try:
-                        await asyncio.wait_for(watcher.wait(), STREAM_KEEPALIVE)
+                        await asyncio.wait_for(watcher.wait(), WEB_CHECK)
                     except TimeoutError:
-                        yield ": keep-alive\n\n"  # so proxies and the browser keep the stream open
+                        current = version()
+                        # Wait for the files to settle, so a save in progress
+                        # doesn't reload into half a file.
+                        if current != sent and current == pending:
+                            sent = current
+                            idle = 0.0
+                            yield f"event: version\ndata: {json.dumps(sent)}\n\n"
+                        pending = current
+                        idle += WEB_CHECK
+                        if idle >= STREAM_KEEPALIVE:
+                            idle = 0.0
+                            yield ": keep-alive\n\n"  # so proxies and the browser keep the stream open
                         continue
                     watcher.clear()
+                    idle = 0.0
                     yield "event: change\ndata: {}\n\n"
             finally:
                 hub.unwatch(watcher)

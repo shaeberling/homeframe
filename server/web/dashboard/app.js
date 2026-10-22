@@ -1378,6 +1378,14 @@ stream.addEventListener('change', refreshDashboard);
 const streamIs = (open) => () => { state.stream = open; if (state.dash) renderInstances(state.dash.instances); };
 stream.addEventListener('open', streamIs(true));
 stream.addEventListener('error', streamIs(false));
+// The server's version changes when it restarts (new config or code) or a
+// file of this page is edited: reload to show that without a manual refresh.
+let serverVersion = null;
+stream.addEventListener('version', (event) => {
+  const version = JSON.parse(event.data);
+  if (serverVersion && version !== serverVersion) location.reload();
+  serverVersion = version;
+});
 setInterval(refreshHistory, HISTORY_REFRESH_MS);
 
 let resizeFrame = 0;
