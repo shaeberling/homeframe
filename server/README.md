@@ -70,6 +70,8 @@ See `config.example.yaml` for every option. In short:
   instance without a panel shows all of its temperature sensors.
 - `attention` — thresholds for what needs a look, plus `watch` / `ignore`
   glob patterns.
+- `screen` — the monitor of a wall screen on this computer: in standby while
+  a Home Assistant entity is off, switched with `wlopm`.
 - `people`, `places` — whose location to show next to the weather, and the
   known places to name it by.
 - `frame` — which house the frame hangs in, orientation, threshold, dithering,
@@ -255,6 +257,7 @@ homeframe/weather.py       weather entity selection + forecast shaping
 homeframe/people.py        where people are: zones, known places, addresses
 homeframe/lights.py        lights by floor and room
 homeframe/power.py         power draw: the mains and its circuits
+homeframe/screen.py        the wall screen's monitor, switched by an entity
 homeframe/services.py      starred calendar events, to-do items
 homeframe/demo.py          synthetic instances for --demo
 homeframe/frame/view.py    what the frame shows, from the same state

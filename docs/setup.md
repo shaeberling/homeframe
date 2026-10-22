@@ -232,6 +232,32 @@ chromium --kiosk --noerrdialogs --disable-infobars http://localhost:8080/
 
 Put that in the desktop's autostart to come up after a reboot.
 
+### Standby at night
+
+When the server runs on the computer the screen hangs on, it can put the
+monitor to standby while a Home Assistant entity is off, and wake it when the
+entity turns on. Create a toggle helper in Home Assistant (Settings → Devices
+& services → Helpers → Toggle), then:
+
+```yaml
+screen:
+  entity: input_boolean.dashboard_screen
+  output: HDMI-A-1        # optional; `wlopm` lists the names
+```
+
+Automations then decide when: turn the helper off in a bedtime routine, on
+again at seven. The server puts the monitor to standby (DPMS) with `wlopm`, so
+it needs a wlroots desktop such as labwc, the Raspberry Pi default. The output
+stays configured meanwhile, so the browser keeps its place.
+
+A wall screen on Wi-Fi is only switched while it is online. On a Raspberry Pi,
+turn Wi-Fi power saving off and let NetworkManager keep retrying, or one
+dropout can leave it offline until a reboot:
+
+```sh
+nmcli connection modify <wifi connection> 802-11-wireless.powersave 2 connection.autoconnect-retries 0
+```
+
 ## 6. The e-paper frame (optional)
 
 1. In `config.yaml`, set `frame.home` to the house the frame hangs in, and

@@ -37,6 +37,8 @@ layout magnified; phones get it stacked):
 - **Attention** — everything that needs a look across all houses: cold rooms,
   offline devices, low batteries, an unreachable Home Assistant.
 - **Batteries** of every device, emptiest first.
+- **Standby at night** — the wall screen's monitor sleeps while a Home
+  Assistant switch is off, so a bedtime routine can turn it off.
 
 Updates are pushed: the server keeps a WebSocket open to each Home Assistant
 and passes changes to the browser over server-sent events, so a door opening

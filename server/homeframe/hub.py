@@ -17,6 +17,7 @@ from .demo import DemoClient
 from .ha import HAClient, Series, describe_error, parse_time
 from .lights import light_entities
 from .people import watched as watched_people
+from .screen import ScreenSwitch
 from .services import entities_of, fetch_agenda, fetch_todos
 from .weather import days_from_daily, days_from_hourly, supports_daily, weather_entity
 
@@ -49,6 +50,9 @@ class Hub:
         self._clients = {i.id: client_type(i) for i in config.instances}
         self._live = {i.id: InstanceState() for i in config.instances}
         self._tasks: list[asyncio.Task] = []
+        # Never switch the real screen off for synthetic data.
+        self.screen = ScreenSwitch(config.screen) if config.screen and not config.demo else None
+        self._switching: set[asyncio.Task] = set()
         # One event per open browser stream, set when something worth an
         # immediate refresh has changed.
         self._watchers: set[asyncio.Event] = set()
@@ -96,6 +100,7 @@ class Hub:
                     log.warning("%s: %s", instance.name, message)
                 live.error = message
             else:
+                await self._follow_screen(instance)
                 await self._refresh_activity_times(instance)
                 await self._refresh_time_zone(instance)
                 await self._refresh_devices(instance)
@@ -138,6 +143,10 @@ class Hub:
             live.states.pop(entity_id, None)
         else:
             live.states[entity_id] = state
+        if self.screen and (instance.id, entity_id) == (self.screen.setting.instance, self.screen.setting.entity):
+            task = asyncio.create_task(self.screen.follow(state))
+            self._switching.add(task)
+            task.add_done_callback(self._switching.discard)
         # Doors, motion, lights and where people are is what one watches
         # happen; everything else is fine with the browser's own refresh.
         watched = (
@@ -168,6 +177,11 @@ class Hub:
 
     def live(self, instance_id: str) -> InstanceState:
         return self._live[instance_id]
+
+    async def _follow_screen(self, instance: Instance) -> None:
+        """Catch up on the screen entity after a restart or a lost push connection."""
+        if self.screen and self.screen.setting.instance == instance.id:
+            await self.screen.follow(self._live[instance.id].states.get(self.screen.setting.entity))
 
     async def _refresh_activity_times(self, instance: Instance) -> None:
         """Look up when each door and motion sensor really last changed, once

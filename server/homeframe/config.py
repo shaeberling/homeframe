@@ -169,6 +169,16 @@ class Place:
 
 
 @dataclass
+class Screen:
+    """The monitor the dashboard runs on: in standby while `entity` is off."""
+
+    entity: str  # anything that is on or off: input_boolean.*, switch.*, ...
+    instance: str
+    # Output names, such as HDMI-A-1; empty means every output.
+    outputs: list[str] = field(default_factory=list)
+
+
+@dataclass
 class Config:
     instances: list[Instance]
     panels: list[Panel] = field(default_factory=list)
@@ -178,6 +188,7 @@ class Config:
     todo: Todo = field(default_factory=Todo)
     people: list[Person] = field(default_factory=list)
     places: list[Place] = field(default_factory=list)
+    screen: Screen | None = None
     # The IPv4 wildcard, so the ESP32 can reach /frame.bin.
     host: str = "0.0.0.0"
     port: int = 8080
@@ -213,15 +224,17 @@ def load_config(path: Path) -> Config:
 
     server = _mapping(raw, "server")
     services = _mapping(raw, "services")
+    frame = _frame(_mapping(raw, "frame"), ids)
     return Config(
         instances=instances,
         panels=panels,
         attention=_attention(_mapping(raw, "attention")),
-        frame=_frame(_mapping(raw, "frame"), ids),
+        frame=frame,
         calendar=_calendar(_mapping(services, "calendar"), ids),
         todo=_todo(_mapping(services, "todo"), ids),
         people=[_person(p, f"people[{n}]", ids) for n, p in enumerate(_list(raw, "people"), 1)],
         places=[_place(p, f"places[{n}]") for n, p in enumerate(_list(raw, "places"), 1)],
+        screen=_screen(_mapping(raw, "screen"), ids, frame.home or ids[0]),
         host=str(server.get("host", "0.0.0.0")),
         port=int(server.get("port", 8080)),
         poll_interval=max(2.0, _number(server, "poll_interval", "server") or 15),
@@ -439,6 +452,19 @@ def _place(raw, where: str) -> Place:
     return Place(
         name=str(raw["name"]), latitude=latitude, longitude=longitude,
         radius=100 if radius is None else radius, people=people,
+    )
+
+
+def _screen(raw: dict, instance_ids: list[str], home: str) -> Screen | None:
+    if not raw:
+        return None
+    if not raw.get("entity") or "." not in str(raw["entity"]):
+        raise ConfigError("screen.entity: expected the entity id that switches the screen, such as input_boolean.screen")
+    outputs = raw.get("outputs") or raw.get("output") or []
+    return Screen(
+        entity=str(raw["entity"]).strip(),
+        instance=_instance_ref(raw, "instance", "screen", instance_ids) or home,
+        outputs=[str(o) for o in ([outputs] if isinstance(outputs, str) else outputs)],
     )
 
 

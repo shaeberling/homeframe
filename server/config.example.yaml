@@ -51,6 +51,16 @@ instances:
     token: "PASTE_LONG_LIVED_ACCESS_TOKEN"
     # verify_ssl: false                    # only for self-signed certificates
 
+# The monitor the dashboard runs on, when the server runs on that computer:
+# in standby while this Home Assistant entity is off (an input_boolean helper
+# that automations switch), awake while it is on. Uses wlopm, so it needs
+# a wlroots desktop such as labwc (the Raspberry Pi default).
+#
+# screen:
+#   entity: input_boolean.dashboard_screen
+#   instance: home           # default: the frame's home instance
+#   output: HDMI-A-1         # default: every output wlopm lists
+
 # The e-paper frame. Every key is optional.
 frame:
   # home: home               # instance of the house the frame hangs in (default: the first).
